@@ -29,7 +29,7 @@ interface LocationMarkerProps {
   scale: number;
   panPosition: { x: number; y: number };
 }
-
+// 🔹 Иконки
 // 🔹 Иконки
 const getLocationIcon = (type: string, customIconUrl?: string, onLoad?: () => void) => {
   const iconSize =
