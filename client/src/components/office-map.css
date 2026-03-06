@@ -1,0 +1,243 @@
+.map-container {
+  width: 100%;
+  height: 100%;
+  /* Height should be controlled by Tailwind classes (h-[800px]),
+     not by CSS to prevent conflicts between admin and public modes */
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.map-container:active {
+  cursor: grabbing;
+}
+
+/* Стили для масштабируемого контейнера */
+.map-scalable {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  touch-action: none; /* Предотвращает стандартное поведение касания на мобильных устройствах */
+  user-select: none; /* Предотвращает выделение текста при перетаскивании */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  /* GPU-ускорение для гладкого движения */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  /* Предотвращаем мигание при преобразованиях */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+  /* По умолчанию нет переходов - жесткое управление через inline styles */
+  transition: none;
+}
+
+/* Floor transition: fade in/out effect - optimized for 60 FPS */
+.map-scalable.floor-transitioning {
+  transition: opacity 1000ms cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  /* Block interactions during transition */
+  pointer-events: none;
+}
+
+.map-scalable.floor-loaded {
+  opacity: 1;
+  transition: opacity 1000ms cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+}
+
+/* Во время зума/панорамы отключаем некоторые дорогие операции */
+.map-scalable.is-interacting {
+  outline: none;
+}
+
+.map-container.is-interacting {
+  -webkit-font-smoothing: antialiased;
+}
+
+.map-scalable img {
+  pointer-events: none; /* Отключает события мыши на изображении */
+  -webkit-user-drag: none; /* Отключает перетаскивание в WebKit */
+  -khtml-user-drag: none; /* Отключает перетаскивание в KHTML */
+  -moz-user-drag: none; /* Отключает перетаскивание в Firefox */
+  -o-user-drag: none; /* Отключает перетаскивание в Opera */
+  /* Улучшаем качество при масштабировании - сохраняем чёткость */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  /* GPU-ускорение */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: auto;
+}
+
+.map-scalable object {
+  pointer-events: none; /* Отключает события мыши на SVG объекте, чтобы они проходили к контейнеру */
+  -webkit-user-drag: none; /* Отключает перетаскивание в WebKit */
+  -khtml-user-drag: none; /* Отключает перетаскивание в KHTML */
+  -moz-user-drag: none; /* Отключает перетаскивание в Firefox */
+  -o-user-drag: none; /* Отключает перетаскивание в Opera */
+  /* GPU-ускорение для SVG */
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: auto;
+}
+
+.marker {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-color: red;
+  border-radius: 50%;
+}
+
+/* Highlight animation: optimized for 60 FPS performance */
+.marker-highlight {
+  transition: transform 280ms cubic-bezier(.25,.46,.45,.94), opacity 280ms cubic-bezier(.25,.46,.45,.94);
+  transform-origin: center center;
+  animation: none;
+  will-change: transform, opacity;
+}
+
+/* Пульсирующая анимация для кружка выделения */
+@keyframes location-pulse {
+  0% {
+    r: calc(50% - 2px);
+    stroke-width: 2;
+    opacity: 1;
+  }
+  50% {
+    r: calc(50% + 8px);
+    stroke-width: 1.5;
+    opacity: 0.6;
+  }
+  100% {
+    r: calc(50% - 2px);
+    stroke-width: 2;
+    opacity: 1;
+  }
+}
+
+.location-highlight-ring-pulse {
+  animation: location-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Оптимизация производительности для маркеров */
+.location-marker {
+  contain: layout style paint; /* Изолирует рендеринг контекст маркера */
+  will-change: transform; /* Подсказывает браузеру готовиться к трансформациям */
+  /* Enable GPU acceleration */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* removed marker-pulse keyframes to avoid background animation */
+
+/* Public links container: render links in a column */
+.public-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.public-links a {
+  display: inline-block;
+  width: 100%;
+  max-width: 220px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background-color: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+  text-decoration: none;
+  font-size: 12px;
+  border: 1px solid var(--sidebar-border);
+}
+.public-links a:hover {
+  /* Slightly stronger accent on hover */
+  filter: brightness(0.95);
+  text-decoration: underline;
+}
+
+.ac-diamond {
+  border-radius: 8px;
+  /* квадрат, который повёрнут на 45 градусов */
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #38bdf8 60%, #0ea5e9 100%);
+  /* голубой градиент для кондиционера */
+}
+
+/* Специальный стиль для контента модального окна с деталями локации.
+   Резервируем место под полосу прокрутки, чтобы она не закрывала скруглённый угол.
+*/
+.location-modal-content {
+  /* Reserve space for vertical scrollbar so it doesn't overlap rounded corners.
+     `stable both-edges` is preferable where supported. Fallback padding-right ensures
+     visual safety in older browsers. */
+  scrollbar-gutter: stable both-edges;
+  padding-right: 1rem;
+}
+
+/* WebKit fallback: make visible scrollbar take space via width and ensure padding area */
+.location-modal-content::-webkit-scrollbar {
+  width: 12px;
+}
+.location-modal-content::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+  border-radius: 6px;
+}
+
+/* Smooth fade-in animation for location icons */
+@keyframes icon-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Icon transition for smooth appearance - optimized for 60 FPS */
+.location-marker img {
+  transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+/* Shadow/ghost marker when dragging - shows where marker will be placed */
+.location-marker-shadow {
+  border: 2px dashed rgba(100, 150, 255, 0.6);
+  box-shadow: 0 0 8px rgba(100, 150, 255, 0.4), inset 0 0 4px rgba(100, 150, 255, 0.2);
+  animation: shadow-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes shadow-pulse {
+  0%, 100% {
+    opacity: 0.35;
+    box-shadow: 0 0 8px rgba(100, 150, 255, 0.4), inset 0 0 4px rgba(100, 150, 255, 0.2);
+  }
+  50% {
+    opacity: 0.5;
+    box-shadow: 0 0 12px rgba(100, 150, 255, 0.6), inset 0 0 6px rgba(100, 150, 255, 0.3);
+  }
+}
+
+/* Respect user's motion preferences for better accessibility and performance */
+@media (prefers-reduced-motion: reduce) {
+  .map-scalable,
+  .map-scalable.floor-transitioning,
+  .map-scalable.floor-loaded,
+  .marker-highlight,
+  .location-marker img,
+  .location-highlight-ring-pulse {
+    transition: none !important;
+    animation: none !important;
+  }
+}

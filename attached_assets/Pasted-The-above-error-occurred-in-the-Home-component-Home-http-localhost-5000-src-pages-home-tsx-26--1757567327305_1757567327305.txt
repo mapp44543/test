@@ -1,0 +1,99 @@
+The above error occurred in the <Home> component:
+
+Home@http://localhost:5000/src/pages/home.tsx:26:51
+Route@http://localhost:5000/@fs/C:/Projects/office-map/node_modules/.vite/deps/wouter.js?v=2f736a45:280:13
+Switch@http://localhost:5000/@fs/C:/Projects/office-map/node_modules/.vite/deps/wouter.js?v=2f736a45:336:14
+Router
+Provider@http://localhost:5000/@fs/C:/Projects/office-map/node_modules/.vite/deps/chunk-R7BVZTRU.js?v=2f736a45:59:47
+TooltipProvider@http://localhost:5000/@fs/C:/Projects/office-map/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=2f736a45:61:7
+QueryClientProvider@http://localhost:5000/@fs/C:/Projects/office-map/node_modules/.vite/deps/@tanstack_react-query.js?v=2f736a45:3023:27
+App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries. react-dom.development.js:18704:15
+Uncaught TypeError: locations.filter is not a function
+    Home home.tsx:22
+    React 15
+    batchCalls notifyManager.ts:73
+    notifyFn notifyManager.ts:21
+    flush notifyManager.ts:44
+    flush notifyManager.ts:43
+    batchNotifyFn notifyManager.ts:24
+    flush notifyManager.ts:42
+    setTimeout handler*systemSetTimeoutZero timeoutManager.ts:134
+    flush notifyManager.ts:41
+    batch notifyManager.ts:60
+    dispatch_fn query.ts:682
+    setData query.ts:235
+    fetch query.ts:559
+    executeFetch_fn queryObserver.ts:341
+    onSubscribe queryObserver.ts:101
+    subscribe subscribable.ts:11
+    useBaseQuery useBaseQuery.ts:100
+    React 14
+    workLoop scheduler.development.js:266
+    flushWork scheduler.development.js:239
+    performWorkUntilDeadline scheduler.development.js:533
+    js scheduler.development.js:571
+    js scheduler.development.js:633
+    __require chunk-4MBMRILA.js:11
+    js index.js:6
+    __require chunk-4MBMRILA.js:11
+    React 2
+    __require chunk-4MBMRILA.js:11
+    js React
+    __require chunk-4MBMRILA.js:11
+    js React
+    __require chunk-4MBMRILA.js:11
+    <anonymous> react-dom_client.js:38
+home.tsx:22:26
+    Home home.tsx:22
+    React 15
+    batchCalls notifyManager.ts:73
+    notifyFn notifyManager.ts:21
+    flush notifyManager.ts:44
+    forEach self-hosted:157
+    flush notifyManager.ts:43
+    batchNotifyFn notifyManager.ts:24
+    flush notifyManager.ts:42
+    (Асинхронный: setTimeout handler)
+    systemSetTimeoutZero timeoutManager.ts:134
+    flush notifyManager.ts:41
+    batch notifyManager.ts:60
+    dispatch_fn query.ts:682
+    setData query.ts:235
+    fetch query.ts:559
+    InterpretGeneratorResume self-hosted:1332
+    AsyncFunctionNext self-hosted:800
+    (Асинхронный: async)
+    executeFetch_fn queryObserver.ts:341
+    onSubscribe queryObserver.ts:101
+    subscribe subscribable.ts:11
+    useBaseQuery useBaseQuery.ts:100
+    React 14
+    workLoop scheduler.development.js:266
+    flushWork scheduler.development.js:239
+    performWorkUntilDeadline scheduler.development.js:533
+    (Асинхронный: EventHandlerNonNull)
+    js scheduler.development.js:571
+    js scheduler.development.js:633
+    __require chunk-4MBMRILA.js:11
+    js index.js:6
+    __require chunk-4MBMRILA.js:11
+    React 2
+    __require chunk-4MBMRILA.js:11
+    js React
+    __require chunk-4MBMRILA.js:11
+    js React
+    __require chunk-4MBMRILA.js:11
+    <анонимный> react-dom_client.js:38
+GET
+http://localhost:5000/favicon.ico
+
+Ошибка карты кода: No sources are declared in this source map.
+URL ресурса: http://localhost:5000/@fs/C:/Projects/office-map/node_modules/.vite/deps/clsx.js?v=2f736a45
+URL карты кода: clsx.js.map
+
+Ошибка карты кода: No sources are declared in this source map.
+URL ресурса: http://localhost:5000/@fs/C:/Projects/office-map/node_modules/.vite/deps/@radix-ui_react-slot.js?v=2f736a45
+URL карты кода: @radix-ui_react-slot.js.map

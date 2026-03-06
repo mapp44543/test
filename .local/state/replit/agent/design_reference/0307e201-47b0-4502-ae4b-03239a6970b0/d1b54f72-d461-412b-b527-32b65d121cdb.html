@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Layout Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                },
+                fontFamily: {
+                    sans: ["Inter", "system-ui", "sans-serif"],
+                }
+            },
+        }
+    };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --background: hsl(210 40% 98%);
+            --foreground: hsl(222.2 84% 4.9%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(222.2 84% 4.9%);
+            --popover: hsl(0 0% 100%);
+            --popover-foreground: hsl(222.2 84% 4.9%);
+            --primary: hsl(221.2 83.2% 53.3%);
+            --primary-foreground: hsl(210 40% 98%);
+            --secondary: hsl(210 40% 96%);
+            --secondary-foreground: hsl(222.2 84% 4.9%);
+            --muted: hsl(210 40% 96%);
+            --muted-foreground: hsl(215.4 16.3% 46.9%);
+            --accent: hsl(210 40% 96%);
+            --accent-foreground: hsl(222.2 84% 4.9%);
+            --destructive: hsl(0 84.2% 60.2%);
+            --destructive-foreground: hsl(210 40% 98%);
+            --border: hsl(214.3 31.8% 91.4%);
+            --input: hsl(214.3 31.8% 91.4%);
+            --ring: hsl(221.2 83.2% 53.3%);
+            --radius: 0.5rem;
+        }
+        
+        .office-space {
+            background: linear-gradient(45deg, #f8fafc 25%, transparent 25%), 
+                        linear-gradient(-45deg, #f8fafc 25%, transparent 25%), 
+                        linear-gradient(45deg, transparent 75%, #f8fafc 75%), 
+                        linear-gradient(-45deg, transparent 75%, #f8fafc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        
+        .location-marker {
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        
+        .location-marker:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .occupied {
+            background: linear-gradient(135deg, hsl(25 95% 53%) 0%, hsl(25 95% 43%) 100%);
+        }
+        
+        .available {
+            background: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 26%) 100%);
+        }
+        
+        .maintenance {
+            background: linear-gradient(135deg, hsl(48 96% 53%) 0%, hsl(48 96% 43%) 100%);
+        }
+        
+        .realtime-indicator {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .drag-handle {
+            cursor: move;
+        }
+        
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground font-sans">
+    <!-- @COMPONENT: Header [navigation, auth controls] -->
+    <header class="bg-card border-b border-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-map-marked-alt text-primary text-2xl"></i>
+                    <h1 class="text-xl font-semibold text-foreground">Office Layout Manager</h1>
+                    <div class="realtime-indicator flex items-center space-x-2 ml-4">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-sm text-muted-foreground">Live Updates</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <button id="toggleView" class="bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/80 transition-colors">
+                        <i class="fas fa-user-cog mr-2"></i>
+                        <span id="viewToggleText">Admin Panel</span>
+                    </button>
+                    <div id="adminControls" class="hidden space-x-2">
+                        <button class="bg-primary text-primary-foreground px-3 py-2 rounded-md hover:bg-primary/90 transition-colors">
+                            <i class="fas fa-save mr-2"></i>Save Layout
+                        </button>
+                        <button class="bg-destructive text-destructive-foreground px-3 py-2 rounded-md hover:bg-destructive/90 transition-colors">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- @END_COMPONENT: Header -->
+
+    <div class="flex h-screen bg-background">
+        <!-- @COMPONENT: AdminSidebar [management controls, location list] -->
+        <aside id="adminSidebar" class="hidden w-80 bg-card border-r border-border overflow-y-auto">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-semibold text-foreground">Admin Controls</h2>
+                    <button id="addLocation" class="bg-primary text-primary-foreground px-3 py-2 rounded-md text-sm hover:bg-primary/90 transition-colors">
+                        <i class="fas fa-plus mr-1"></i>Add Location
+                    </button>
+                </div>
+                
+                <!-- Stats Overview -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-secondary p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-foreground">24</div>
+                        <div class="text-sm text-muted-foreground">Total Spaces</div>
+                    </div>
+                    <div class="bg-secondary p-4 rounded-lg">
+                        <div class="text-2xl font-bold text-green-600">18</div>
+                        <div class="text-sm text-muted-foreground">Available</div>
+                    </div>
+                </div>
+                
+                <!-- Location Management -->
+                <div class="space-y-4">
+                    <h3 class="font-medium text-foreground">Locations</h3>
+                    
+                    <!-- Location Item -->
+                    <div class="border border-border rounded-lg p-4 space-y-3" data-mock="true">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="drag-handle text-muted-foreground">
+                                    <i class="fas fa-grip-vertical"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-foreground" data-bind="location.name">Conference Room A</div>
+                                    <div class="text-sm text-muted-foreground" data-bind="location.type">Meeting Room</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="available w-3 h-3 rounded-full"></span>
+                                <button class="text-muted-foreground hover:text-foreground transition-colors">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-xs text-muted-foreground">
+                            Capacity: <span data-bind="location.capacity">12</span> • Equipment: <span data-bind="location.equipment">Projector, Whiteboard</span>
+                        </div>
+                    </div>
+                    
+                    <div class="border border-border rounded-lg p-4 space-y-3" data-mock="true">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="drag-handle text-muted-foreground">
+                                    <i class="fas fa-grip-vertical"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-foreground" data-bind="location.name">John Smith's Desk</div>
+                                    <div class="text-sm text-muted-foreground" data-bind="location.type">Workstation</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="occupied w-3 h-3 rounded-full"></span>
+                                <button class="text-muted-foreground hover:text-foreground transition-colors">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-xs text-muted-foreground">
+                            Employee: <span data-bind="location.employee">John Smith</span> • ID: <span data-bind="location.id">WS-001</span>
+                        </div>
+                    </div>
+                    
+                    <div class="border border-border rounded-lg p-4 space-y-3" data-mock="true">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="drag-handle text-muted-foreground">
+                                    <i class="fas fa-grip-vertical"></i>
+                                </div>
+                                <div>
+                                    <div class="font-medium text-foreground" data-bind="location.name">Printer Station</div>
+                                    <div class="text-sm text-muted-foreground" data-bind="location.type">Equipment</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="maintenance w-3 h-3 rounded-full"></span>
+                                <button class="text-muted-foreground hover:text-foreground transition-colors">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="text-xs text-muted-foreground">
+                            Model: <span data-bind="location.model">HP LaserJet Pro</span> • Status: <span data-bind="location.status">Maintenance</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <!-- @END_COMPONENT: AdminSidebar -->
+        
+        <!-- @COMPONENT: MainContent [office map display] -->
+        <main class="flex-1 overflow-hidden">
+            <div class="h-full flex flex-col">
+                <!-- Map Controls -->
+                <div class="bg-card border-b border-border p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <h2 class="text-lg font-semibold text-foreground">Office Floor Plan</h2>
+                            <div class="flex items-center space-x-6 text-sm">
+                                <div class="flex items-center space-x-2">
+                                    <span class="available w-3 h-3 rounded-full"></span>
+                                    <span class="text-muted-foreground">Available (18)</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="occupied w-3 h-3 rounded-full"></span>
+                                    <span class="text-muted-foreground">Occupied (5)</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="maintenance w-3 h-3 rounded-full"></span>
+                                    <span class="text-muted-foreground">Maintenance (1)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button class="bg-secondary text-secondary-foreground px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors">
+                                <i class="fas fa-search-plus mr-2"></i>Zoom In
+                            </button>
+                            <button class="bg-secondary text-secondary-foreground px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors">
+                                <i class="fas fa-search-minus mr-2"></i>Zoom Out
+                            </button>
+                            <button class="bg-secondary text-secondary-foreground px-3 py-2 rounded-md hover:bg-secondary/80 transition-colors">
+                                <i class="fas fa-expand-arrows-alt mr-2"></i>Reset View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Office Map -->
+                <div class="flex-1 relative office-space overflow-auto">
+                    <div class="min-w-[1200px] min-h-[800px] relative p-8">
+                        <!-- Office Layout SVG Background -->
+                        <svg class="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Room Boundaries -->
+                            <rect x="50" y="50" width="300" height="200" fill="none" stroke="hsl(214.3 31.8% 91.4%)" stroke-width="2"/>
+                            <rect x="400" y="50" width="350" height="200" fill="none" stroke="hsl(214.3 31.8% 91.4%)" stroke-width="2"/>
+                            <rect x="800" y="50" width="300" height="200" fill="none" stroke="hsl(214.3 31.8% 91.4%)" stroke-width="2"/>
+                            
+                            <rect x="50" y="300" width="500" height="400" fill="none" stroke="hsl(214.3 31.8% 91.4%)" stroke-width="2"/>
+                            <rect x="600" y="300" width="250" height="200" fill="none" stroke="hsl(214.3 31.8% 91.4%)" stroke-width="2"/>
+                            <rect x="600" y="550" width="250" height="150" fill="none" stroke="hsl(214.3 31.8% 91.4%)" stroke-width="2"/>
+                            <rect x="900" y="300" width="200" height="400" fill="none" stroke="hsl(214.3 31.8% 91.4%)" stroke-width="2"/>
+                            
+                            <!-- Room Labels -->
+                            <text x="200" y="40" text-anchor="middle" fill="hsl(215.4 16.3% 46.9%)" font-size="12" font-family="Inter">Conference Rooms</text>
+                            <text x="575" y="40" text-anchor="middle" fill="hsl(215.4 16.3% 46.9%)" font-size="12" font-family="Inter">Meeting Spaces</text>
+                            <text x="950" y="40" text-anchor="middle" fill="hsl(215.4 16.3% 46.9%)" font-size="12" font-family="Inter">Private Offices</text>
+                            <text x="300" y="290" text-anchor="middle" fill="hsl(215.4 16.3% 46.9%)" font-size="12" font-family="Inter">Open Workspace</text>
+                            <text x="725" y="290" text-anchor="middle" fill="hsl(215.4 16.3% 46.9%)" font-size="12" font-family="Inter">Break Room</text>
+                            <text x="725" y="540" text-anchor="middle" fill="hsl(215.4 16.3% 46.9%)" font-size="12" font-family="Inter">Storage</text>
+                            <text x="1000" y="290" text-anchor="middle" fill="hsl(215.4 16.3% 46.9%)" font-size="12" font-family="Inter">Executive</text>
+                        </svg>
+                        
+                        <!-- Interactive Location Markers -->
+                        <!-- Conference Room A -->
+                        <div class="location-marker available absolute top-16 left-16 w-24 h-16 rounded-lg shadow-lg flex items-center justify-center text-white text-xs font-medium" 
+                             data-location-id="conf-a" data-mock="true">
+                            <div class="text-center">
+                                <i class="fas fa-users mb-1"></i>
+                                <div>Conf A</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Conference Room B -->
+                        <div class="location-marker occupied absolute top-16 left-48 w-24 h-16 rounded-lg shadow-lg flex items-center justify-center text-white text-xs font-medium" 
+                             data-location-id="conf-b" data-mock="true">
+                            <div class="text-center">
+                                <i class="fas fa-users mb-1"></i>
+                                <div>Conf B</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Meeting Room 1 -->
+                        <div class="location-marker available absolute top-16 left-96 w-20 h-16 rounded-lg shadow-lg flex items-center justify-center text-white text-xs font-medium" 
+                             data-location-id="meet-1" data-mock="true">
+                            <div class="text-center">
+                                <i class="fas fa-handshake mb-1"></i>
+                                <div>Meet 1</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Meeting Room 2 -->
+                        <div class="location-marker available absolute top-16 left-[480px] w-20 h-16 rounded-lg shadow-lg flex items-center justify-center text-white text-xs font-medium" 
+                             data-location-id="meet-2" data-mock="true">
+                            <div class="text-center">
+                                <i class="fas fa-handshake mb-1"></i>
+                                <div>Meet 2</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Private Office 1 -->
+                        <div class="location-marker occupied absolute top-16 right-48 w-20 h-16 rounded-lg shadow-lg flex items-center justify-center text-white text-xs font-medium" 
+                             data-location-id="office-1" data-mock="true">
+                            <div class="text-center">
+                                <i class="fas fa-door-closed mb-1"></i>
+                                <div>CEO</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Private Office 2 -->
+                        <div class="location-marker available absolute top-16 right-20 w-20 h-16 rounded-lg shadow-lg flex items-center justify-center text-white text-xs font-medium" 
+                             data-location-id="office-2" data-mock="true">
+                            <div class="text-center">
+                                <i class="fas fa-door-open mb-1"></i>
+                                <div>CTO</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Workstations in Open Area -->
+                        <!-- @MAP: workstations.map(workstation => ( -->
+                        <div class="location-marker occupied absolute top-80 left-20 w-16 h-12 rounded-md shadow-md flex items-center justify-center text-white text-xs" 
+                             data-location-id="ws-1" data-mock="true">
+                            <i class="fas fa-desktop"></i>
+                        </div>
+                        
+                        <div class="location-marker available absolute top-80 left-40 w-16 h-12 rounded-md shadow-md flex items-center justify-center text-white text-xs" 
+                             data-location-id="ws-2" data-mock="true">
+                            <i class="fas fa-desktop"></i>
+                        </div>
+                        
+                        <div class="location-marker occupied absolute top-80 left-60 w-16 h-12 rounded-md shadow-md flex items-center justify-center text-white text-xs" 
+                             data-location-id="ws-3" data-mock="true">
+                            <i class="fas fa-desktop"></i>
+                        </div>
+                        
+                        <div class="location-marker available absolute top-80 left-80 w-16 h-12 rounded-md shadow-md flex items-center justify-center text-white text-xs" 
+                             data-location-id="ws-4" data-mock="true">
+                            <i class="fas fa-desktop"></i>
+                        </div>
+                        
+                        <div class="location-marker available absolute top-96 left-20 w-16 h-12 rounded-md shadow-md flex items-center justify-center text-white text-xs" 
+                             data-location-id="ws-5" data-mock="true">
+                            <i class="fas fa-desktop"></i>
+                        </div>
+                        
+                        <div class="location-marker occupied absolute top-96 left-40 w-16 h-12 rounded-md shadow-md flex items-center justify-center text-white text-xs" 
+                             data-location-id="ws-6" data-mock="true">
+                            <i class="fas fa-desktop"></i>
+                        </div>
+                        <!-- @END_MAP )) -->
+                        
+                        <!-- Break Room Equipment -->
+                        <div class="location-marker available absolute top-80 right-96 w-20 h-16 rounded-lg shadow-lg flex items-center justify-center text-white text-xs font-medium" 
+                             data-location-id="kitchen" data-mock="true">
+                            <div class="text-center">
+                                <i class="fas fa-coffee mb-1"></i>
+                                <div>Kitchen</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Printer Station -->
+                        <div class="location-marker maintenance absolute bottom-32 right-96 w-16 h-12 rounded-md shadow-md flex items-center justify-center text-white text-xs" 
+                             data-location-id="printer" data-mock="true">
+                            <i class="fas fa-print"></i>
+                        </div>
+                        
+                        <!-- Storage -->
+                        <div class="location-marker available absolute bottom-16 right-96 w-20 h-12 rounded-md shadow-md flex items-center justify-center text-white text-xs" 
+                             data-location-id="storage" data-mock="true">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        
+                        <!-- Executive Areas -->
+                        <div class="location-marker occupied absolute top-80 right-20 w-18 h-16 rounded-lg shadow-lg flex items-center justify-center text-white text-xs font-medium" 
+                             data-location-id="exec-1" data-mock="true">
+                            <div class="text-center">
+                                <i class="fas fa-crown mb-1"></i>
+                                <div>Board</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <!-- @END_COMPONENT: MainContent -->
+    </div>
+    
+    <!-- @COMPONENT: LocationModal [location details and editing] -->
+    <div id="locationModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-card rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-semibold text-foreground">Location Details</h3>
+                    <button id="closeModal" class="text-muted-foreground hover:text-foreground transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Status Indicator -->
+                    <div class="flex items-center space-x-3">
+                        <span id="modalStatus" class="available w-4 h-4 rounded-full"></span>
+                        <span id="modalStatusText" class="font-medium text-foreground" data-bind="location.status">Available</span>
+                    </div>
+                    
+                    <!-- Location Info -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-muted-foreground mb-1">Name</label>
+                            <input type="text" id="locationName" class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground" 
+                                   value="Conference Room A" data-bind="location.name" data-mock="true">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-muted-foreground mb-1">Type</label>
+                            <select id="locationType" class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground" data-bind="location.type">
+                                <option value="meeting-room" selected data-mock="true">Meeting Room</option>
+                                <option value="workstation">Workstation</option>
+                                <option value="equipment">Equipment</option>
+                                <option value="common-area">Common Area</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-muted-foreground mb-1">Capacity</label>
+                            <input type="number" id="locationCapacity" class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground" 
+                                   value="12" data-bind="location.capacity" data-mock="true">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-muted-foreground mb-1">Equipment</label>
+                            <textarea id="locationEquipment" class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground" 
+                                      rows="2" data-bind="location.equipment" data-mock="true">Projector, Whiteboard, Conference Phone</textarea>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-muted-foreground mb-1">Assigned Employee</label>
+                            <input type="text" id="locationEmployee" class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground" 
+                                   placeholder="Employee name (optional)" data-bind="location.employee" data-mock="true">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-muted-foreground mb-1">Inventory ID</label>
+                            <input type="text" id="locationId" class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground" 
+                                   value="CR-A001" data-bind="location.inventoryId" data-mock="true">
+                        </div>
+                        
+                        <!-- Custom Fields Section -->
+                        <div class="border-t border-border pt-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <label class="block text-sm font-medium text-muted-foreground">Custom Fields</label>
+                                <button class="text-primary hover:text-primary/80 text-sm" data-event="click:addCustomField">
+                                    <i class="fas fa-plus mr-1"></i>Add Field
+                                </button>
+                            </div>
+                            
+                            <div class="space-y-2" data-mock="true">
+                                <div class="flex items-center space-x-2">
+                                    <input type="text" placeholder="Field name" class="flex-1 px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm">
+                                    <input type="text" placeholder="Value" class="flex-1 px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm">
+                                    <button class="text-destructive hover:text-destructive/80">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex justify-between pt-6 border-t border-border">
+                        <button class="bg-destructive text-destructive-foreground px-4 py-2 rounded-md hover:bg-destructive/90 transition-colors" 
+                                data-event="click:deleteLocation">
+                            <i class="fas fa-trash mr-2"></i>Delete
+                        </button>
+                        <div class="space-x-2">
+                            <button id="cancelEdit" class="bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/80 transition-colors">
+                                Cancel
+                            </button>
+                            <button class="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors" 
+                                    data-event="click:saveLocation">
+                                <i class="fas fa-save mr-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: LocationModal -->
+    
+    <!-- @COMPONENT: LoginModal [admin authentication] -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-card rounded-lg shadow-xl max-w-sm w-full">
+            <div class="p-6">
+                <div class="text-center mb-6">
+                    <i class="fas fa-shield-alt text-primary text-3xl mb-3"></i>
+                    <h3 class="text-lg font-semibold text-foreground">Admin Login</h3>
+                    <p class="text-sm text-muted-foreground">Enter your credentials to access admin panel</p>
+                </div>
+                
+                <form class="space-y-4" data-event="submit:handleLogin">
+                    <div>
+                        <label class="block text-sm font-medium text-muted-foreground mb-1">Username</label>
+                        <input type="text" required class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground" 
+                               placeholder="Enter username" data-mock="true">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-muted-foreground mb-1">Password</label>
+                        <input type="password" required class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground" 
+                               placeholder="Enter password" data-mock="true">
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="rememberMe" class="rounded border-input">
+                        <label for="rememberMe" class="ml-2 text-sm text-muted-foreground">Remember me</label>
+                    </div>
+                    
+                    <div class="flex space-x-2 pt-4">
+                        <button type="button" id="cancelLogin" class="flex-1 bg-secondary text-secondary-foreground py-2 rounded-md hover:bg-secondary/80 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="flex-1 bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-colors">
+                            Login
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: LoginModal -->
+
+    <script>
+        // TODO: Implement business logic, API calls, or state management
+        
+        (function() {
+            // @STATE: isAdminMode:boolean = false
+            // @STATE: selectedLocation:object = null
+            // @STATE: isAuthenticated:boolean = false
+            
+            let isAdminMode = false;
+            let selectedLocation = null;
+            let isAuthenticated = false;
+            
+            const elements = {
+                toggleView: document.getElementById('toggleView'),
+                viewToggleText: document.getElementById('viewToggleText'),
+                adminControls: document.getElementById('adminControls'),
+                adminSidebar: document.getElementById('adminSidebar'),
+                locationModal: document.getElementById('locationModal'),
+                loginModal: document.getElementById('loginModal'),
+                closeModal: document.getElementById('closeModal'),
+                cancelEdit: document.getElementById('cancelEdit'),
+                cancelLogin: document.getElementById('cancelLogin')
+            };
+            
+            // Toggle between public and admin view
+            elements.toggleView.addEventListener('click', function() {
+                if (!isAdminMode) {
+                    if (!isAuthenticated) {
+                        showLoginModal();
+                    } else {
+                        enableAdminMode();
+                    }
+                } else {
+                    disableAdminMode();
+                }
+            });
+            
+            function showLoginModal() {
+                elements.loginModal.classList.remove('hidden');
+            }
+            
+            function hideLoginModal() {
+                elements.loginModal.classList.add('hidden');
+            }
+            
+            function enableAdminMode() {
+                isAdminMode = true;
+                elements.viewToggleText.textContent = 'Public View';
+                elements.adminControls.classList.remove('hidden');
+                elements.adminSidebar.classList.remove('hidden');
+                // @FUNCTIONALITY: Enable drag-and-drop functionality for location markers
+                enableDragAndDrop();
+            }
+            
+            function disableAdminMode() {
+                isAdminMode = false;
+                elements.viewToggleText.textContent = 'Admin Panel';
+                elements.adminControls.classList.add('hidden');
+                elements.adminSidebar.classList.add('hidden');
+                // @FUNCTIONALITY: Disable drag-and-drop functionality
+                disableDragAndDrop();
+            }
+            
+            function enableDragAndDrop() {
+                // @FUNCTIONALITY: Implement drag-and-drop using HTML5 drag API or touch events
+                const locationMarkers = document.querySelectorAll('.location-marker');
+                locationMarkers.forEach(marker => {
+                    marker.draggable = true;
+                    marker.addEventListener('dragstart', handleDragStart);
+                    marker.addEventListener('dragend', handleDragEnd);
+                });
+            }
+            
+            function disableDragAndDrop() {
+                const locationMarkers = document.querySelectorAll('.location-marker');
+                locationMarkers.forEach(marker => {
+                    marker.draggable = false;
+                    marker.removeEventListener('dragstart', handleDragStart);
+                    marker.removeEventListener('dragend', handleDragEnd);
+                });
+            }
+            
+            function handleDragStart(e) {
+                // @FUNCTIONALITY: Store drag data and provide visual feedback
+                e.dataTransfer.setData('text/plain', e.target.dataset.locationId);
+                e.target.style.opacity = '0.5';
+            }
+            
+            function handleDragEnd(e) {
+                e.target.style.opacity = '1';
+                // @FUNCTIONALITY: Update location coordinates in backend
+            }
+            
+            // Location marker click handlers
+            document.querySelectorAll('.location-marker').forEach(marker => {
+                marker.addEventListener('click', function() {
+                    selectedLocation = this.dataset.locationId;
+                    showLocationModal();
+                });
+            });
+            
+            function showLocationModal() {
+                elements.locationModal.classList.remove('hidden');
+                // @FUNCTIONALITY: Load location data from backend based on selectedLocation
+                loadLocationData();
+            }
+            
+            function hideLocationModal() {
+                elements.locationModal.classList.add('hidden');
+                selectedLocation = null;
+            }
+            
+            function loadLocationData() {
+                // @FUNCTIONALITY: Fetch location details from API and populate modal fields
+                // Mock data binding - in real implementation, this would come from API
+            }
+            
+            // Modal close handlers
+            elements.closeModal.addEventListener('click', hideLocationModal);
+            elements.cancelEdit.addEventListener('click', hideLocationModal);
+            elements.cancelLogin.addEventListener('click', hideLoginModal);
+            
+            // Login form handler
+            const loginForm = document.querySelector('[data-event="submit:handleLogin"]');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    // @FUNCTIONALITY: Implement actual authentication logic
+                    // Mock authentication - always succeeds for demo
+                    isAuthenticated = true;
+                    hideLoginModal();
+                    enableAdminMode();
+                });
+            }
+            
+            // @FUNCTIONALITY: Implement real-time updates using WebSocket or Server-Sent Events
+            function initializeRealTimeUpdates() {
+                // Mock real-time indicator - would connect to actual WebSocket
+                setInterval(() => {
+                    // Update UI based on real-time data
+                }, 5000);
+            }
+            
+            // @FUNCTIONALITY: Initialize map zoom and pan controls
+            function initializeMapControls() {
+                // Implement zoom in/out and pan functionality
+                const zoomInBtn = document.querySelector('[data-event*="zoom-in"]');
+                const zoomOutBtn = document.querySelector('[data-event*="zoom-out"]');
+                const resetViewBtn = document.querySelector('[data-event*="reset-view"]');
+                
+                // Add event listeners for map manipulation
+            }
+            
+            // Close modals when clicking outside
+            [elements.locationModal, elements.loginModal].forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        modal.classList.add('hidden');
+                    }
+                });
+            });
+            
+            // Initialize the application
+            initializeRealTimeUpdates();
+            initializeMapControls();
+        })();
+    </script>
+</body>
+</html>
