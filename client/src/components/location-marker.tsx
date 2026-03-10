@@ -29,7 +29,7 @@ interface LocationMarkerProps {
   scale: number;
   panPosition: { x: number; y: number };
 }
-// 🔹 Иконки
+
 // 🔹 Иконки
 const getLocationIcon = (type: string, customIconUrl?: string, onLoad?: () => void) => {
   const iconSize =
@@ -74,7 +74,7 @@ const getLocationIcon = (type: string, customIconUrl?: string, onLoad?: () => vo
   // For socket type, show lucide-react icons
   switch (type) {
     case "socket":
-      // Socket only shows the colored marker, no icon
+      // Socket icons are rendered here - no visual icon, just the colored circle
       return null;
     default:
       return null;
@@ -630,29 +630,7 @@ function LocationMarkerComponent({
             ...getShapeStyle(location.type, customIconUrl),
           }}
         >
-          <div className="flex flex-col items-center justify-center w-full h-full select-none">
-            {location.type !== "socket" && customIconUrl && getLocationIcon(location.type, customIconUrl)}
-            {location.type === "socket" && (
-              <div
-                className="mt-0.5 text-[10px] leading-tight font-medium text-center w-full max-w-full px-0.5 overflow-hidden text-ellipsis whitespace-nowrap"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "1.2em",
-                  lineHeight: "1.1",
-                  fontSize:
-                    (location.width ?? 0) < 40 || (location.height ?? 0) < 40
-                      ? "9px"
-                      : "11px",
-                }}
-                title={location.name}
-              >
-                {location.customFields?.port
-                  ? location.customFields.port.match(/\/(\d+)$/)?.[1] ||
-                    location.name
-                  : location.name}
-              </div>
-            )}
-          </div>
+          {location.type === "socket" ? getLocationIcon(location.type, customIconUrl) : customIconUrl ? getLocationIcon(location.type, customIconUrl) : null}
         </div>
       )}
       <Tooltip>
@@ -693,7 +671,7 @@ function LocationMarkerComponent({
           )}
 
           <div className="flex flex-col items-center justify-center w-full h-full select-none">
-            {location.type !== "socket" && (customIconUrl ? getLocationIcon(location.type, customIconUrl, () => setIsIconLoaded(true)) : null)}
+            {location.type === "socket" ? getLocationIcon(location.type, customIconUrl) : customIconUrl ? getLocationIcon(location.type, customIconUrl, () => setIsIconLoaded(true)) : null}
             {location.type === "socket" && (
               <div
                 className="mt-0.5 text-[10px] leading-tight font-medium text-center w-full max-w-full px-0.5 overflow-hidden text-ellipsis whitespace-nowrap"

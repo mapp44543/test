@@ -10,7 +10,7 @@
 `VirtualizedMarkerLayer` использует `useMemo` для фильтрации видимых маркеров, но **все видимые маркеры всё равно рендерятся как DOM элементы**.
 
 ### Решение: Использовать react-window для маркеров
-www
+
 ```typescript
 // client/src/components/virtualized-marker-layer-advanced.tsx
 import { FixedSizeList as List } from 'react-window';

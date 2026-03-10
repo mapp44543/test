@@ -203,10 +203,12 @@ export default function CanvasInteractiveMarkerLayer({
       ctx.fillStyle = fillColor;
       ctx.fill();
 
-      // Рисуем обводку
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      // Рисуем обводку (только не для розеток)
+      if (location.type !== 'socket') {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
 
       // Для выделенного маркера рисуем кольцо
       if (isHighlighted) {
