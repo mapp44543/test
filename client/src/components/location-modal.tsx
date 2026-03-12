@@ -168,7 +168,11 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
       setWorkstationStatus(currentStatus);
       
       if (storedIcon) {
-        setSelectedWorkstationIcon(storedIcon);
+        // Icon might be stored as "activ/filename.svg" or just "filename.svg" (legacy)
+        // Extract just the filename for the select value
+        const filename = storedIcon.includes('/') ? storedIcon.split('/').pop() || storedIcon : storedIcon;
+        console.log(`[init-workstation] Stored icon: ${storedIcon}, extracted filename: ${filename}`);
+        setSelectedWorkstationIcon(filename);
       } else {
         // Select first icon from the appropriate status folder
         const statusMap: Record<string, typeof workstationActivIcons> = {
@@ -435,7 +439,15 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
 
     // Если это workstation (рабочее место) и выбрана иконка - сохраняем выбор
     if (formData.type === 'workstation' && selectedWorkstationIcon) {
-      customFieldsObject.customIcon = selectedWorkstationIcon;
+      // Determine the status folder name based on current status
+      const statusToFolderMap: Record<string, string> = {
+        "occupied": "activ",
+        "available": "nonactiv",
+        "maintenance": "repair"
+      };
+      const statusFolder = statusToFolderMap[formData.status] || "nonactiv";
+      // Save as "folder/filename" so we can reconstruct the correct path
+      customFieldsObject.customIcon = `${statusFolder}/${selectedWorkstationIcon}`;
     }
 
     // Добавляем служебные поля

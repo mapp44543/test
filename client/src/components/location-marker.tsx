@@ -30,6 +30,9 @@ interface LocationMarkerProps {
   panPosition: { x: number; y: number };
 }
 
+// 🔹 Глобальный кэш загруженных иконок для избежания проблем с браузер кэшированием
+const loadedIconsCache = new Set<string>();
+
 // 🔹 Иконки
 const getLocationIcon = (type: string, customIconUrl?: string, onLoad?: () => void) => {
   const iconSize =
@@ -61,6 +64,8 @@ const getLocationIcon = (type: string, customIconUrl?: string, onLoad?: () => vo
         onLoad={(e) => {
           // Smooth fade-in when image loads
           e.currentTarget.style.opacity = '1';
+          // Add to cache of loaded icons
+          loadedIconsCache.add(customIconUrl);
           onLoad?.();
         }}
         onError={(e) => {
@@ -302,11 +307,28 @@ function LocationMarkerComponent({
         return iconsCache.acIcons[0].url;
       }
     } else if (location.type === "workstation") {
+      console.log(`[workstation] iconsCache.isLoading=${iconsCache.isLoading}, status=${status}`);
       if (iconsCache.isLoading) {
+        console.warn(`[workstation] Icons still loading, returning undefined`);
         return undefined;
       }
       if (preferredIcon) {
-        return `/icons/user/${preferredIcon}`;
+        console.log(`[workstation] Using preferred icon: ${preferredIcon}`);
+        // Check if preferredIcon contains folder path (e.g., "activ/filename.svg")
+        // If it does, use it directly; otherwise, determine folder from status
+        if (preferredIcon.includes('/')) {
+          // Full path like "activ/файл.svg" - use as is
+          return `/icons/user/${preferredIcon}`;
+        } else {
+          // Only filename - determine folder from status
+          const statusToFolderMap = {
+            occupied: "activ",
+            available: "nonactiv",
+            maintenance: "repair",
+          };
+          const folder = statusToFolderMap[status as keyof typeof statusToFolderMap] || "nonactiv";
+          return `/icons/user/${folder}/${preferredIcon}`;
+        }
       }
       // Выбираем иконку в зависимости от статуса
       const iconsByStatus = {
@@ -315,9 +337,13 @@ function LocationMarkerComponent({
         maintenance: iconsCache.workstationRepairIcons,
       };
       const icons = iconsByStatus[status as keyof typeof iconsByStatus] || iconsCache.workstationNonactivIcons;
+      console.log(`[workstation] Icons for status '${status}': ${icons.length} items available`);
       if (icons.length > 0) {
-        return icons[0].url;
+        const iconUrl = icons[0].url;
+        console.log(`[workstation] Selected icon: ${iconUrl}`);
+        return iconUrl;
       }
+      console.error(`[workstation] No icons available for status '${status}'`);
     }
 
     return undefined;
@@ -327,8 +353,32 @@ function LocationMarkerComponent({
 
   // Reset icon loaded state when the icon URL changes
   useEffect(() => {
-    setIsIconLoaded(false);
-  }, [customIconUrl]);
+    // Check if this icon URL has already been loaded before
+    if (customIconUrl && loadedIconsCache.has(customIconUrl)) {
+      // Icon is already cached, mark it as loaded immediately
+      console.log(`[${location.type}] Icon ${customIconUrl} found in cache, marking as loaded`);
+      setIsIconLoaded(true);
+    } else if (customIconUrl) {
+      // Icon is new, check if it's already in the browser cache using Image API
+      console.log(`[${location.type}] Checking if icon ${customIconUrl} is in browser cache...`);
+      const img = new Image();
+      img.onload = () => {
+        console.log(`[${location.type}] Icon ${customIconUrl} loaded successfully`);
+        loadedIconsCache.add(customIconUrl);
+        setIsIconLoaded(true);
+      };
+      img.onerror = () => {
+        console.error(`[${location.type}] Failed to load icon ${customIconUrl}`);
+        setIsIconLoaded(false);
+      };
+      // Set src to trigger load check
+      img.src = customIconUrl;
+    } else {
+      // No icon URL
+      console.warn(`[${location.type}] No customIconUrl available`);
+      setIsIconLoaded(false);
+    }
+  }, [customIconUrl, location.type]);
 
   const sizeScale =
     location.type === "common-area"
@@ -732,7 +782,25 @@ function LocationMarkerComponent({
 // Вместо этого, передаём их через props, но маркер не перерендеривается из-за них
 const LocationMarkerMemo = React.memo(LocationMarkerComponent, (prev, next) => {
   // Возвращаем true если пропсы одинаковые (не нужен пересчёт)
-  return (
+  const statusChanged = prev.location.status !== next.location.status;
+  const nameChanged = prev.location.name !== next.location.name;
+  const positionChanged = prev.location.x !== next.location.x || prev.location.y !== next.location.y;
+  const customFieldsChanged = JSON.stringify(prev.location.customFields) !== JSON.stringify(next.location.customFields);
+  
+  if (prev.location.type === "workstation" && (statusChanged || customFieldsChanged)) {
+    console.log(`[workstation-memo] Detected changes for '${next.location.name}':`, {
+      statusChanged,
+      nameChanged,
+      positionChanged,
+      customFieldsChanged,
+      prevStatus: prev.location.status,
+      nextStatus: next.location.status,
+      prevFields: prev.location.customFields,
+      nextFields: next.location.customFields,
+    });
+  }
+  
+  const result = (
     // Проверяем основные свойства локации
     prev.location.id === next.location.id &&
     prev.location.x === next.location.x &&
@@ -740,6 +808,8 @@ const LocationMarkerMemo = React.memo(LocationMarkerComponent, (prev, next) => {
     prev.location.status === next.location.status &&
     prev.location.name === next.location.name &&
     prev.location.type === next.location.type &&
+    // ВАЖНО: Сравниваем customFields для иконок (особенно для workstation)
+    JSON.stringify(prev.location.customFields) === JSON.stringify(next.location.customFields) &&
     // Проверяем UI состояние
     prev.isHighlighted === next.isHighlighted &&
     prev.isAdminMode === next.isAdminMode &&
@@ -753,6 +823,12 @@ const LocationMarkerMemo = React.memo(LocationMarkerComponent, (prev, next) => {
     prev.onClick === next.onClick &&
     prev.onMarkerMove === next.onMarkerMove
   );
+  
+  if (prev.location.type === "workstation") {
+    console.log(`[workstation-memo] Re-render decision for '${next.location.name}': ${result ? 'SKIP (no changes)' : 'RENDER (changes detected)'}`);
+  }
+  
+  return result;
 });
 
 export default LocationMarkerMemo;

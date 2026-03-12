@@ -13,6 +13,10 @@ const logger = winston.createLogger({
     winston.format.json(),
   ),
   defaultMeta: { service: 'socket-port-scheduler' },
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'logs/socket-port-scheduler.log' })
+  ]
 });
 
 // Interface for port batches
