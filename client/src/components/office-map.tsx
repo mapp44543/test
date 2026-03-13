@@ -1,4 +1,5 @@
 import { useRef, useState, useMemo, useEffect, useCallback } from "react";
+import { flushSync } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -121,7 +122,9 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       cancelAnimationFrame(rafIdRef.current);
     }
     rafIdRef.current = requestAnimationFrame(() => {
-      setPanPosition({ x: newX, y: newY });
+      flushSync(() => {
+        setPanPosition({ x: newX, y: newY });
+      });
       rafIdRef.current = null;
     });
   }, [isPanning, startPanPos]);
@@ -235,10 +238,12 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     panPositionRef.current = { x: newPanX, y: newPanY };
     scaleRef.current = newScale;
 
-    // Обновляем состояние для перерендера
-    setPanPosition({ x: newPanX, y: newPanY });
-    setScale(newScale);
-    setIsInteracting(true);
+    // Обновляем состояние для перерендера (синхронно в React 19)
+    flushSync(() => {
+      setPanPosition({ x: newPanX, y: newPanY });
+      setScale(newScale);
+      setIsInteracting(true);
+    });
 
     // Сбрасываем батч
     wheelPendingRef.current = false;
@@ -336,8 +341,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     const newPanX = centerX - markerPixelX * targetScale;
     const newPanY = centerY - markerPixelY * targetScale;
 
-    setScale(targetScale);
-    setPanPosition({ x: newPanX, y: newPanY });
+    flushSync(() => {
+      setScale(targetScale);
+      setPanPosition({ x: newPanX, y: newPanY });
+    });
 
     // Подсвечиваем маркер
     setHighlightedLocationIdsLocal(prev => Array.from(new Set([...prev, locationId])));

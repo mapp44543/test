@@ -1340,12 +1340,15 @@ async function registerRoutes(app2) {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://replit.com"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://replit.com", "https://*.replit.com"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https:"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        mediaSrc: ["'self'", "https:"],
         objectSrc: ["'self'"],
-        connectSrc: ["'self'", "wss:", "ws:", "https://fonts.gstatic.com"]
+        connectSrc: ["'self'", "wss:", "ws:", "https://fonts.gstatic.com", "https://*.replit.com"],
+        frameSrc: ["'self'", "https://replit.com", "https://*.replit.com"],
+        childSrc: ["'self'"]
       }
     },
     hsts: { maxAge: 31536e3, includeSubDomains: true },

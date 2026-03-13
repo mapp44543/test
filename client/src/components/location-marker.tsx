@@ -11,6 +11,16 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { LocationHighlightRing } from "@/components/location-highlight-ring";
 import type { Location } from "@shared/schema";
 
+/**
+ * Правильное URL-кодирование с поддержкой кириллицы и спецсимволов
+ */
+const encodeUrlPath = (path: string): string => {
+  return path
+    .split('/')
+    .map(segment => encodeURIComponent(segment))
+    .join('/');
+};
+
 interface LocationMarkerProps {
   location: Location;
   isAdminMode: boolean;
@@ -261,7 +271,7 @@ function LocationMarkerComponent({
         return undefined;
       }
       if (preferredIcon) {
-        return `/icons/common%20area/${preferredIcon}`;
+        return `/icons/${encodeUrlPath(`common area/${preferredIcon}`)}`;
       }
       if (iconsCache.commonAreaIcons.length > 0) {
         return iconsCache.commonAreaIcons[0].url;
@@ -271,7 +281,7 @@ function LocationMarkerComponent({
         return undefined;
       }
       if (preferredIcon) {
-        return `/icons/negotiation%20room/${preferredIcon}`;
+        return `/icons/${encodeUrlPath(`negotiation room/${preferredIcon}`)}`;
       }
       if (iconsCache.meetingRoomIcons.length > 0) {
         return iconsCache.meetingRoomIcons[0].url;
@@ -281,7 +291,7 @@ function LocationMarkerComponent({
         return undefined;
       }
       if (preferredIcon) {
-        return `/icons/print/${preferredIcon}`;
+        return `/icons/${encodeUrlPath(`print/${preferredIcon}`)}`;
       }
       if (iconsCache.equipmentIcons.length > 0) {
         return iconsCache.equipmentIcons[0].url;
@@ -291,7 +301,7 @@ function LocationMarkerComponent({
         return undefined;
       }
       if (preferredIcon) {
-        return `/icons/Камера/${preferredIcon}`;
+        return `/icons/${encodeUrlPath(`Камера/${preferredIcon}`)}`;
       }
       if (iconsCache.cameraIcons.length > 0) {
         return iconsCache.cameraIcons[0].url;
@@ -301,7 +311,7 @@ function LocationMarkerComponent({
         return undefined;
       }
       if (preferredIcon) {
-        return `/icons/ac/${preferredIcon}`;
+        return `/icons/${encodeUrlPath(`ac/${preferredIcon}`)}`;
       }
       if (iconsCache.acIcons.length > 0) {
         return iconsCache.acIcons[0].url;
@@ -317,8 +327,8 @@ function LocationMarkerComponent({
         // Check if preferredIcon contains folder path (e.g., "activ/filename.svg")
         // If it does, use it directly; otherwise, determine folder from status
         if (preferredIcon.includes('/')) {
-          // Full path like "activ/файл.svg" - use as is
-          return `/icons/user/${preferredIcon}`;
+          // Full path like "activ/файл.svg" - encode it
+          return `/icons/${encodeUrlPath(`user/${preferredIcon}`)}`;
         } else {
           // Only filename - determine folder from status
           const statusToFolderMap = {
@@ -327,7 +337,7 @@ function LocationMarkerComponent({
             maintenance: "repair",
           };
           const folder = statusToFolderMap[status as keyof typeof statusToFolderMap] || "nonactiv";
-          return `/icons/user/${folder}/${preferredIcon}`;
+          return `/icons/${encodeUrlPath(`user/${folder}/${preferredIcon}`)}`;
         }
       }
       // Выбираем иконку в зависимости от статуса
