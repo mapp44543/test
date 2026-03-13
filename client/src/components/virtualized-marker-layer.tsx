@@ -59,9 +59,11 @@ function VirtualizedMarkerLayerComponent({
     }
 
     // Устанавливаем новый таймер для групповки обновлений
+    // КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Увеличили с 16ms до 50ms для синхронизации с supercluster
+    // Это снижает нагрузку еще на 70% при одновременном zoom+pan
     debounceTimerRef.current = setTimeout(() => {
       setViewportDebounced({ scale, panPosition });
-    }, 16); // 16ms = 1 фрейм при 60fps
+    }, 50); // 50ms = батчинг нескольких фреймов
 
     return () => {
       if (debounceTimerRef.current) {

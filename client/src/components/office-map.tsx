@@ -763,11 +763,20 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
             const markerCount = locations.length;
             const inAdminMode = isAdminMode;
 
-            // Выбираем оптимальный рендеринг режим (зависит только от markerCount и isAdminMode)
+            // КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Выбор оптимального режима рендеринга
+            // Для 100+ маркеров ВСЕГДА нужна виртуализация, даже в админ режиме!
+            // Иначе рендеримся все 100+ DOM элементов = лаги
             let renderMode: 'basic' | 'advanced' | 'canvas' = 'basic';
-            if (!inAdminMode) {
-              if (markerCount > 150) renderMode = 'canvas';
-              else if (markerCount > 80) renderMode = 'advanced';
+            
+            // Для 100+ маркеров в админ режиме: используем advanced (виртуализированный DOM)
+            // Для 150+ маркеров в любом режиме: используем canvas (самый быстрый)
+            if (markerCount > 150) {
+              renderMode = 'canvas';
+            } else if (markerCount > 80) {
+              // КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Используем advanced даже в админ режиме!
+              // Было: renderMode выбирался только для !inAdminMode
+              // Теперь: advanced используется для 80-150 маркеров всегда
+              renderMode = 'advanced';
             }
 
             // Рендеринг маркер-слоя - этот контейнер меняется только когда нужно, а не при каждом zoom/pan

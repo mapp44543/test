@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import Supercluster from "supercluster";
 import type { Location } from "@shared/schema";
 
@@ -36,13 +36,39 @@ interface ClusterResult {
 /**
  * useSupercluster
  * Кластеризует маркеры на основе масштаба камеры
- * Для масштаба < 0.7 группирует близкие маркеры в кластеры
+ * Для масштаба < 0.85 группирует близкие маркеры в кластеры
+ * 
+ * КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19:
+ * Добавлен батчинг для масштаба, чтобы избежать пересчёта getClusters 60 раз в сек
  */
 export function useSupercluster(
   locations: Location[],
   scale: number,
   zoomLevel?: number
 ) {
+  // КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Батчинг масштаба
+  // Вместо прямого использования scale, используем debounced версию
+  const [scaleDebouncedInternal, setScaleDebouncedInternal] = useState(scale);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // Отменяем предыдущий таймер
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Устанавливаем новый таймер для батчинга масштаба (50ms вместо плотных обновлений)
+    debounceTimerRef.current = setTimeout(() => {
+      setScaleDebouncedInternal(scale);
+    }, 50);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [scale]);
+
   // Инициализируем supercluster instance
   const supercluster = useMemo(() => {
     const cluster = new Supercluster({
@@ -72,7 +98,7 @@ export function useSupercluster(
   }, [locations]);
 
   // Определяем, нужна ли кластеризация на основе масштаба
-  const shouldCluster = scale < 0.85; // Увеличили порог с 0.7 для кластеризации при более высоком зуме
+  const shouldCluster = scaleDebouncedInternal < 0.85; // Используем debounced масштаб!
 
   // Получаем кластеры или отдельные маркеры
   const clusteredData = useMemo(() => {
@@ -85,8 +111,9 @@ export function useSupercluster(
     }
 
     // Вычисляем zoom level на основе scale
-    // scale 0.5 = zoom 9, scale 0.1 = zoom 6
-    const computedZoom = Math.max(0, Math.min(15, Math.log2(scale * 32)));
+    // КРИТИЧНОЕ ИСПРАВЛЕНИЕ: Используем debounced масштаб, а не live scale!
+    // Это предотвращает пересчёт getClusters 60 раз в сек
+    const computedZoom = Math.max(0, Math.min(15, Math.log2(scaleDebouncedInternal * 32)));
 
     try {
       // Получаем кластеры для всех bounds (весь экран)
@@ -119,7 +146,7 @@ export function useSupercluster(
         location,
       }));
     }
-  }, [shouldCluster, locations, supercluster, scale]);
+  }, [shouldCluster, locations, supercluster, scaleDebouncedInternal]); // ← DEBOUNCED масштаб!
 
   return {
     clusteredData,
