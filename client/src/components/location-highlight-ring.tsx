@@ -1,5 +1,3 @@
-import React from "react";
-
 interface LocationHighlightRingProps {
   left: number;
   top: number;
@@ -12,13 +10,13 @@ interface LocationHighlightRingProps {
  * Компонент для отображения кружка вокруг выделенной локации
  * Создаёт анимированный кружок с пульсирующим эффектом, центрированный на маркере
  */
-export const LocationHighlightRing: React.FC<LocationHighlightRingProps> = ({
+export function LocationHighlightRing({
   left,
   top,
   width,
   height,
   scale,
-}) => {
+}: LocationHighlightRingProps) {
   // Расчитываем размер кружка (больше чем сам маркер)
   const ringSize = Math.max(width, height) + 26;
   const ringLeft = left - (ringSize - width) / 2;

@@ -18,7 +18,7 @@ interface LocationMarkerProps {
   isHighlighted?: boolean;
   onClick: (location: Location) => void;
   imgSize: { width: number; height: number };
-  imgRef: React.RefObject<HTMLImageElement | HTMLObjectElement>;
+  imgRef: React.RefObject<HTMLImageElement | HTMLObjectElement | null>;
   onMarkerMove?: (
     id: string,
     prevX: number,

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo, useRef } from "react";
 import { X, Save, Trash2, Plus, Upload, ImageOff, Mail, Send, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -26,12 +26,12 @@ interface CustomField {
   value: string;
 }
 
-import React from "react";
+import { useEffect } from "react";
 import { formatRelativeTime } from "@/lib/utils";
 
-const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAdminMode, onClose, isHr, updateLocation, deleteLocation, toast, onFindLocation }) => {
+function LocationModalComponent({ location, isAdminMode, onClose, isHr, updateLocation, deleteLocation, toast, onFindLocation }: LocationModalProps) {
   // Отладочный вывод при монтировании компонента
-  React.useEffect(() => {
+  useEffect(() => {
     // Component mounted
   }, [location]);
 
@@ -55,7 +55,7 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
   const { data: workstationRepairIcons = [] } = useCustomIcons("workstation", { status: "maintenance" });
 
   // Логирование для отладки
-  React.useEffect(() => {
+  useEffect(() => {
     // Icons loaded
   }, [customIcons, meetingRoomIcons, equipmentIcons, cameraIcons, acIcons]);
 
@@ -113,8 +113,8 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
 
   const [avatar, setAvatar] = useState<string | undefined>(initialCustomFields.avatar as string | undefined);
   const [ciscoLoading, setCiscoLoading] = useState(false);
-  const ciscoSyncAbortControllerRef = React.useRef<AbortController | null>(null);
-  const ciscoSyncInProgressRef = React.useRef(false);
+  const ciscoSyncAbortControllerRef = useRef<AbortController | null>(null);
+  const ciscoSyncInProgressRef = useRef(false);
   
   // State for selected icons (common-area, meeting-room, equipment, camera, ac, and workstation)
   const [selectedIcon, setSelectedIcon] = useState<string>("");
@@ -126,7 +126,7 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
   const [selectedColor, setSelectedColor] = useState<string>(location.customColor || "emerald");
 
   // Update selected icon when icons load or type changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (formData.type === 'common-area') {
       const storedIcon = initialCustomFields.customIcon as string | undefined;
       if (storedIcon) {
@@ -580,7 +580,7 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
   const departmentLabel = isSpecialType ? 'Вид' : 'Отдел';
 
   // Закрывать модальное окно при нажатии клавиши Escape
-  React.useEffect(() => {
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Esc') {
         onClose();
@@ -592,7 +592,7 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
   }, [onClose]);
 
   // Cleanup на размонтировании компонента
-  React.useEffect(() => {
+  useEffect(() => {
     return () => {
       // Отменяем любые находящиеся в процессе Cisco запросы
       if (ciscoSyncAbortControllerRef.current) {
@@ -1436,6 +1436,8 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
       </Card>
     </div>
   );
-});
+}
+
+const LocationModal = memo(LocationModalComponent);
 
 export default LocationModal;

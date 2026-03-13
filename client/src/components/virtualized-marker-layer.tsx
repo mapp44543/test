@@ -11,7 +11,7 @@ interface VirtualizedMarkerLayerProps {
   foundLocationId: string | null | undefined;
   onClick: (location: Location) => void;
   imgSize: { width: number; height: number };
-  imgRef: React.RefObject<HTMLImageElement | HTMLObjectElement>;
+  imgRef: React.RefObject<HTMLImageElement | HTMLObjectElement | null>;
   onMarkerMove?: (
     id: string,
     prevX: number,
