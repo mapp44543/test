@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect, useCallback, memo } from "react";
 import LocationMarker from "./location-marker";
 import MarkerCluster from "./marker-cluster";
 import { useSupercluster } from "@/hooks/use-supercluster";
@@ -29,7 +29,7 @@ interface VirtualizedMarkerLayerProps {
  * Отображает только видимые маркеры на основе viewport (масштаб и панорама).
  * Это значительно улучшает производительность при 150+ локациях.
  */
-export default function VirtualizedMarkerLayer({
+function VirtualizedMarkerLayerComponent({
   locations,
   isAdminMode,
   highlightedLocationIds,
@@ -118,9 +118,10 @@ export default function VirtualizedMarkerLayer({
     });
   }, [clusteredData, scale, panPosition, imgSize, isImageLoaded]);
 
-  const handleClusterClick = (clusterId: string) => {
+  // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: используем useCallback для стабилизации callback
+    const handleClusterClick = useCallback((clusterId: string) => {
     setExpandedClusterId(expandedClusterId === clusterId ? null : clusterId);
-  };
+  }, [expandedClusterId]);
 
   if (!isImageLoaded || visibleItems.length === 0) {
     return null;
@@ -173,3 +174,20 @@ export default function VirtualizedMarkerLayer({
     </>
   );
 }
+
+// КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: memo компонент для избежания лишних перерендеров
+// Сравниваем только props, которые влияют на рендер
+export default memo(VirtualizedMarkerLayerComponent, (prevProps, nextProps) => {
+  // Если основные данные не изменились, не переrender-им
+  if (
+    prevProps.locations.length === nextProps.locations.length &&
+    prevProps.scale === nextProps.scale &&
+    prevProps.panPosition.x === nextProps.panPosition.x &&
+    prevProps.panPosition.y === nextProps.panPosition.y &&
+    prevProps.isImageLoaded === nextProps.isImageLoaded &&
+    prevProps.highlightedLocationIds.length === nextProps.highlightedLocationIds.length
+  ) {
+    return true; // Props одинаковые, skip re-render
+  }
+  return false; // Props изменились, нужна переделка render
+});

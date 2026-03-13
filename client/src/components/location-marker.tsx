@@ -250,8 +250,11 @@ function LocationMarkerComponent({
         return null;
       }
     },
+    // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19:
+    // Отключаем query если маркер не видимый или тип не рабочее место
+    // Увеличиваем staleTime чтобы уменьшить количество запросов
     enabled: location.type === "workstation" && !!location.id && !!isVisible,
-    staleTime: 5 * 60 * 1000, // 5 минут
+    staleTime: 10 * 60 * 1000, // 10 минут (было 5)
     retry: false, // Не пересылаем 404 ошибки
   });
   
@@ -430,10 +433,14 @@ function LocationMarkerComponent({
     dragStartRef.current = { x: e.clientX, y: e.clientY };
   };
 
-  useEffect(() => {
-    if (!isMouseDown) return;
+  // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19:
+  // Используем refs для handlers чтобы они не переделывались на каждый render
+  const handleMouseMoveRef = useRef<(e: MouseEvent) => void | null>(null);
+  const handleMouseUpRef = useRef<(e?: MouseEvent) => void | null>(null);
 
-    const handleMouseMove = (e: MouseEvent) => {
+  // Инициализируем handlers один раз (используя refs для доступа к текущему state)
+  useEffect(() => {
+    handleMouseMoveRef.current = (e: MouseEvent) => {
       if (!dragStartRef.current) return;
       
       // Detect if there was significant movement to distinguish drag from click
@@ -483,7 +490,7 @@ function LocationMarkerComponent({
       }
     };
 
-    const handleMouseUp = (e: MouseEvent) => {
+    handleMouseUpRef.current = (e?: MouseEvent) => {
       setIsMouseDown(false);
       
       if (!isDragging || !dragStartRef.current) {
@@ -508,6 +515,7 @@ function LocationMarkerComponent({
         document.documentElement.classList.remove("dragging-marker-no-select");
       } catch {}
 
+      if (!e) return;
       const img = imgRef.current;
       if (!img) return;
 
@@ -548,16 +556,24 @@ function LocationMarkerComponent({
         customFields: location.customFields ?? {},
       });
     };
+  }, [isDragging, location, imgSize, scale, sizeScale, onMarkerMove, updateLocationMutation, imgRef]);
 
-    // Add event listeners to document to handle drag outside marker
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+  // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19:
+  // Добавляем слушатели ровно один раз, не переделываем их при изменении зависимостей
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => handleMouseMoveRef.current?.(e);
+    const handleUp = () => handleMouseUpRef.current?.();
 
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isMouseDown, isDragging, location, imgSize, scale, sizeScale, onMarkerMove, updateLocationMutation, imgRef]);
+    if (isMouseDown) {
+      document.addEventListener("mousemove", handleMove);
+      document.addEventListener("mouseup", handleUp);
+
+      return () => {
+        document.removeEventListener("mousemove", handleMove);
+        document.removeEventListener("mouseup", handleUp);
+      };
+    }
+  }, [isMouseDown]);
 
   // 🔹 Клик
   const handleClick = (e: React.MouseEvent) => {

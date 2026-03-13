@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect, useCallback, useState } from "react";
+import React, { useMemo, useRef, useEffect, useCallback, useState, memo } from "react";
 import LocationMarker from "./location-marker";
 import MarkerCluster from "./marker-cluster";
 import { useSupercluster } from "@/hooks/use-supercluster";
@@ -41,7 +41,7 @@ interface VirtualizedMarkerLayerAdvancedProps {
  * - Нужна поддержка hover и tooltip
  * - Canvas не требуется (производительность хорошая)
  */
-export default function VirtualizedMarkerLayerAdvanced({
+function VirtualizedMarkerLayerAdvancedComponent({
   locations,
   isAdminMode,
   highlightedLocationIds,
@@ -135,9 +135,10 @@ export default function VirtualizedMarkerLayerAdvanced({
     return filtered;
   }, [clusteredData, scale, panPosition, imgSize, isImageLoaded]);
 
-  const handleClusterClick = (clusterId: string) => {
+  // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: используем useCallback для стабилизации callback
+  const handleClusterClick = useCallback((clusterId: string) => {
     setExpandedClusterId(expandedClusterId === clusterId ? null : clusterId);
-  };
+  }, [expandedClusterId]);
 
   if (!isImageLoaded || visibleItems.length === 0) {
     return null;
@@ -190,3 +191,19 @@ export default function VirtualizedMarkerLayerAdvanced({
     </>
   );
 }
+
+// КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: memo компонент для избежания лишних перерендеров
+export default memo(VirtualizedMarkerLayerAdvancedComponent, (prevProps, nextProps) => {
+  // Если основные данные не изменились, не переrender-им
+  if (
+    prevProps.locations.length === nextProps.locations.length &&
+    prevProps.scale === nextProps.scale &&
+    prevProps.panPosition.x === nextProps.panPosition.x &&
+    prevProps.panPosition.y === nextProps.panPosition.y &&
+    prevProps.isImageLoaded === nextProps.isImageLoaded &&
+    prevProps.highlightedLocationIds.length === nextProps.highlightedLocationIds.length
+  ) {
+    return true; // Props одинаковые, skip re-render
+  }
+  return false; // Props изменились, нужна переделка render
+});

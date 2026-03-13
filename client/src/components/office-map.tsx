@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo, useEffect, useCallback } from "react";
+import { useRef, useState, useMemo, useEffect } from "react";
 import { flushSync } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -79,28 +79,99 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     });
     toast({ title: 'Перемещение отменено', description: loc.name });
   };
+  // Refs для mouse move обработки (для React 19 оптимизации)
+  const isPanningRef = useRef<boolean>(false);
+  const startPanPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const handleMouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const handleMouseUpRef = useRef<(() => void) | null>(null);
+
+  // Храним обработчик мыши, который никогда не пересоздаётся для addEventListner
+  const mouseEventHandlerRef = useRef<{
+    move: (e: MouseEvent) => void;
+    up: () => void;
+  } | null>(null);
+
+  // Создаём обработчики один раз и затем обновляем их через refs
+  useEffect(() => {
+    handleMouseMoveRef.current = (e: MouseEvent) => {
+      if (!isPanningRef.current) return;
+      
+      const newX = e.clientX - startPanPosRef.current.x;
+      const newY = e.clientY - startPanPosRef.current.y;
+      
+      // Обновляем refs сразу
+      panPositionRef.current = { x: newX, y: newY };
+      
+      // Используем requestAnimationFrame для синхронизации с refresh rate браузера
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+      rafIdRef.current = requestAnimationFrame(() => {
+        // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: используем flushSync для синхронного обновления state
+        flushSync(() => {
+          setPanPosition({ x: newX, y: newY });
+        });
+        rafIdRef.current = null;
+      });
+    };
+
+    handleMouseUpRef.current = () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      isPanningRef.current = false;
+      setIsPanning(false);
+      setIsInteracting(false);
+      // Restore text selection
+      try {
+        document.body.classList.remove('dragging-marker-no-select');
+        document.documentElement.classList.remove('dragging-marker-no-select');
+      } catch {}
+    };
+
+    // Ассигнируем обработчики для использования в addEventListener (один раз!)
+    if (!mouseEventHandlerRef.current) {
+      mouseEventHandlerRef.current = {
+        move: (e: MouseEvent) => handleMouseMoveRef.current?.(e),
+        up: () => handleMouseUpRef.current?.()
+      };
+    }
+  }, []);
+
+  // Обновляем state refs в отдельном useEffect
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+
+  useEffect(() => {
+    panPositionRef.current = panPosition;
+  }, [panPosition]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     // Начинаем панорамирование только левой кнопкой и если клик выполнен над картой (или её контейнером),
     // но не над интерактивными элементами UI (кнопки, инпуты и т.д.).
-  if (e.button !== 0) return;
+    if (e.button !== 0) return;
     const target = e.target as HTMLElement | null;
-  // Разрешаем панорамирование, если клик произошёл внутри .map-scalable или прямо по контейнеру .map-container
-  const isInsideMap = !!target?.closest('.map-scalable') || !!target?.closest('.map-container');
-  // Не начинаем панорамирование, если пользователь кликнул по маркеру (чтобы не перехватывать drag маркера)
-  if (target?.closest && target.closest('.location-marker')) return;
-  // Если кликнули по элементу UI (кнопки/инпуты) — у них обычно есть интерактивность; пропустим начало панорамирования
-  const interactiveTags = ['button', 'input', 'textarea', 'select', 'a', 'label'];
-  if (!isInsideMap || interactiveTags.includes(target?.tagName?.toLowerCase() || '')) return;
-  // Если в данный момент выполняется drag маркера — не начинаем панорамирование
-  if (isMarkerDragging) return;
+    // Разрешаем панорамирование, если клик произошёл внутри .map-scalable или прямо по контейнеру .map-container
+    const isInsideMap = !!target?.closest('.map-scalable') || !!target?.closest('.map-container');
+    // Не начинаем панорамирование, если пользователь кликнул по маркеру (чтобы не перехватывать drag маркера)
+    if (target?.closest && target.closest('.location-marker')) return;
+    // Если кликнули по элементу UI (кнопки/инпуты) — у них обычно есть интерактивность; пропустим начало панорамирования
+    const interactiveTags = ['button', 'input', 'textarea', 'select', 'a', 'label'];
+    if (!isInsideMap || interactiveTags.includes(target?.tagName?.toLowerCase() || '')) return;
+    // Если в данный момент выполняется drag маркера — не начинаем панорамирование
+    if (isMarkerDragging) return;
 
+    isPanningRef.current = true;
     setIsPanning(true);
     // Prevent native text selection on mousedown + drag
     try { e.preventDefault(); } catch {}
-    setStartPanPos({
+    startPanPosRef.current = {
       x: e.clientX - panPosition.x,
       y: e.clientY - panPosition.y
-    });
+    };
+    setStartPanPos(startPanPosRef.current);
     // Prevent text selection while panning the map
     try {
       document.body.classList.add('dragging-marker-no-select');
@@ -108,46 +179,17 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     } catch {}
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isPanning) return;
-    
-    const newX = e.clientX - startPanPos.x;
-    const newY = e.clientY - startPanPos.y;
-    
-    // Обновляем refs сразу для более точного взаимодействия
-    panPositionRef.current = { x: newX, y: newY };
-    
-    // Используем requestAnimationFrame для синхронизации с refresh rate браузера
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-    }
-    rafIdRef.current = requestAnimationFrame(() => {
-      setPanPosition({ x: newX, y: newY });
-      rafIdRef.current = null;
-    });
-  }, [isPanning, startPanPos]);
-
-  const handleMouseUp = useCallback(() => {
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = null;
-    }
-    setIsPanning(false);
-    setIsInteracting(false);
-    // Restore text selection
-    try {
-      document.body.classList.remove('dragging-marker-no-select');
-      document.documentElement.classList.remove('dragging-marker-no-select');
-    } catch {}
-  }, []);
-
-  // Добавляем обработчики событий мыши
+  // Добавляем обработчики событий мыши ОДИН РАЗ (критическое исправление для React 19)
   useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    window.addEventListener('mouseup', handleMouseUp, { passive: true });
+    if (!mouseEventHandlerRef.current) return;
+    
+    const { move, up } = mouseEventHandlerRef.current;
+    window.addEventListener('mousemove', move, { passive: true });
+    window.addEventListener('mouseup', up, { passive: true });
+    
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
       }
@@ -157,16 +199,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
         document.documentElement.classList.remove('dragging-marker-no-select');
       } catch {}
     };
-  }, [handleMouseMove, handleMouseUp]);
-
-  // Синхронизируем scaleRef и panPositionRef с состояниями
-  useEffect(() => {
-    scaleRef.current = scale;
-  }, [scale]);
-
-  useEffect(() => {
-    panPositionRef.current = panPosition;
-  }, [panPosition]);
+  }, []); // ВАЖНО: зависимостей НЕТУ, обработчики добавляются один раз!
 
   // Слушаем глобальные события перетаскивания маркера, чтобы при drag маркера не инициировать панораму
   useEffect(() => {
@@ -183,112 +216,127 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   /**
    * Обработчик события батчинга wheel (накопление событий между RAF кадрами)
    * Вместо throttle который теряет события, мы накапливаем все deltaY и обрабатываем в RAF
+   * OPTIMIZED FOR REACT 19: Стабильный обработчик через refs для избежания пересоздания
    */
-  const processWheelBatch = useCallback(() => {
-    // Если нет накопленных событий, выходим
-    if (wheelDeltaRef.current === 0 || !wheelPendingRef.current) {
-      wheelRafIdRef.current = null;
-      return;
-    }
+  const processWheelBatchRef = useRef<(() => void) | null>(null);
+  const handleWheelRef = useRef<((e: WheelEvent) => void) | null>(null);
+  const wheelEventHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
 
-    const container = containerRef.current;
-    if (!container) {
+  // Инициализируем обработчики один раз
+  useEffect(() => {
+    processWheelBatchRef.current = () => {
+      // Если нет накопленных событий, выходим
+      if (wheelDeltaRef.current === 0 || !wheelPendingRef.current) {
+        wheelRafIdRef.current = null;
+        return;
+      }
+
+      const container = containerRef.current;
+      if (!container) {
+        wheelPendingRef.current = false;
+        wheelDeltaRef.current = 0;
+        wheelRafIdRef.current = null;
+        return;
+      }
+
+      const delta = wheelDeltaRef.current;
+      const mouseScreenX = lastWheelMouseRef.current.x;
+      const mouseScreenY = lastWheelMouseRef.current.y;
+
+      // Получаем позицию контейнера
+      const containerRect = container.getBoundingClientRect();
+
+      // Позиция мыши относительно контейнера
+      const mouseInContainerX = mouseScreenX - containerRect.left;
+      const mouseInContainerY = mouseScreenY - containerRect.top;
+
+      // Получаем АКТУАЛЬНЫЕ значения из refs
+      const currentScale = scaleRef.current;
+      const currentPan = panPositionRef.current;
+
+      // Вычисляем новый масштаб (с учетом ВСЕХ накопленных событий)
+      let newScale = currentScale;
+      const deltaSteps = Math.round(delta / 100); // Нормализуем delta
+      for (let i = 0; i < Math.abs(deltaSteps); i++) {
+        if (delta > 0) {
+          newScale = Math.max(0.5, newScale - 0.1);
+        } else {
+          newScale = Math.min(3, newScale + 0.1);
+        }
+      }
+
+      // Вычисляем новую позицию панорамы с учетом зума
+      const worldX = (mouseInContainerX - currentPan.x) / currentScale;
+      const worldY = (mouseInContainerY - currentPan.y) / currentScale;
+
+      const newPanX = mouseInContainerX - worldX * newScale;
+      const newPanY = mouseInContainerY - worldY * newScale;
+
+      // Обновляем refs сразу
+      panPositionRef.current = { x: newPanX, y: newPanY };
+      scaleRef.current = newScale;
+
+      // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: используем flushSync для гарантирования синхронного обновления
+      // Это предотвращает рассинхронизацию refs и state, которая вызывает лаги при zoom
+      flushSync(() => {
+        setPanPosition({ x: newPanX, y: newPanY });
+        setScale(newScale);
+        setIsInteracting(true);
+      });
+
+      // Сбрасываем батч
       wheelPendingRef.current = false;
       wheelDeltaRef.current = 0;
       wheelRafIdRef.current = null;
-      return;
-    }
+    };
 
-    const delta = wheelDeltaRef.current;
-    const mouseScreenX = lastWheelMouseRef.current.x;
-    const mouseScreenY = lastWheelMouseRef.current.y;
+    handleWheelRef.current = (e: WheelEvent) => {
+      e.preventDefault();
 
-    // Получаем позицию контейнера
-    const containerRect = container.getBoundingClientRect();
+      // Накапливаем delta (не обрабатываем сразу)
+      wheelDeltaRef.current += e.deltaY;
+      lastWheelMouseRef.current = { x: e.clientX, y: e.clientY };
+      wheelPendingRef.current = true;
 
-    // Позиция мыши относительно контейнера
-    const mouseInContainerX = mouseScreenX - containerRect.left;
-    const mouseInContainerY = mouseScreenY - containerRect.top;
-
-    // Получаем АКТУАЛЬНЫЕ значения из refs
-    const currentScale = scaleRef.current;
-    const currentPan = panPositionRef.current;
-
-    // Вычисляем новый масштаб (с учетом ВСЕХ накопленных событий)
-    let newScale = currentScale;
-    const deltaSteps = Math.round(delta / 100); // Нормализуем delta
-    for (let i = 0; i < Math.abs(deltaSteps); i++) {
-      if (delta > 0) {
-        newScale = Math.max(0.5, newScale - 0.1);
-      } else {
-        newScale = Math.min(3, newScale + 0.1);
+      // Если RAF уже запланирован, не запускаем еще один
+      if (wheelRafIdRef.current !== null) {
+        return;
       }
-    }
 
-    // Вычисляем новую позицию панорамы с учетом зума
-    const worldX = (mouseInContainerX - currentPan.x) / currentScale;
-    const worldY = (mouseInContainerY - currentPan.y) / currentScale;
+      // Запланируем обработку в следующем кадре
+      wheelRafIdRef.current = requestAnimationFrame(() => {
+        processWheelBatchRef.current?.();
+      });
+    };
 
-    const newPanX = mouseInContainerX - worldX * newScale;
-    const newPanY = mouseInContainerY - worldY * newScale;
-
-    // Обновляем refs сразу
-    panPositionRef.current = { x: newPanX, y: newPanY };
-    scaleRef.current = newScale;
-
-    // Обновляем состояние для перерендера (асинхронно для mejor performance)
-    // Canvas использует refs напрямую, поэтому синхронный рендер не нужен
-    setPanPosition({ x: newPanX, y: newPanY });
-    setScale(newScale);
-    setIsInteracting(true);
-
-    // Сбрасываем батч
-    wheelPendingRef.current = false;
-    wheelDeltaRef.current = 0;
-    wheelRafIdRef.current = null;
-  }, []);
-
-  /**
-   * Обработчик события колесика мыши (с батчингом событий)
-   * Вместо throttle который теряет события, накапливаем их между кадрами
-   */
-  const handleWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
-
-    // Накапливаем delta (не обрабатываем сразу)
-    wheelDeltaRef.current += e.deltaY;
-    lastWheelMouseRef.current = { x: e.clientX, y: e.clientY };
-    wheelPendingRef.current = true;
-
-    // Если RAF уже запланирован, не запускаем еще один
-    if (wheelRafIdRef.current !== null) {
-      return;
-    }
-
-    // Запланируем обработку в следующем кадре
-    wheelRafIdRef.current = requestAnimationFrame(() => {
-      processWheelBatch();
-    });
-  }, [processWheelBatch]);
-
-  // Добавляем обработчик события колесика мыши с passive: false для preventDefault
-  useEffect(() => {
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
-      return () => {
-        container.removeEventListener('wheel', handleWheel);
-        // Очищаем батчинг RAF если он запланирован
-        if (wheelRafIdRef.current !== null) {
-          cancelAnimationFrame(wheelRafIdRef.current);
-          wheelRafIdRef.current = null;
-        }
-        // Сбрасываем батч
-        wheelPendingRef.current = false;
-        wheelDeltaRef.current = 0;
+    // Создаём стабильный обработчик для addEventListener (один раз!)
+    if (!wheelEventHandlerRef.current) {
+      wheelEventHandlerRef.current = (e: WheelEvent) => {
+        handleWheelRef.current?.(e);
       };
     }
-  }, [handleWheel]);
+  }, []); // Пусто! Инициализируется только один раз
+
+  // Добавляем обработчик события колесика мыши с passive: false для preventDefault (ONE TIME)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !wheelEventHandlerRef.current) return;
+
+    const wheelHandler = wheelEventHandlerRef.current;
+    container.addEventListener('wheel', wheelHandler, { passive: false });
+    
+    return () => {
+      container.removeEventListener('wheel', wheelHandler);
+      // Очищаем батчинг RAF если он запланирован
+      if (wheelRafIdRef.current !== null) {
+        cancelAnimationFrame(wheelRafIdRef.current);
+        wheelRafIdRef.current = null;
+      }
+      // Сбрасываем батч
+      wheelPendingRef.current = false;
+      wheelDeltaRef.current = 0;
+    };
+  }, []); // ВАЖНО: зависимостей нету, слушатель добавляется один раз!
 
   // Сбрасываем флаг взаимодействия через 200мс после последнего события
   useEffect(() => {
@@ -710,95 +758,82 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
               Нет плана этажа
             </div>
           )}
-          {useMemo(() => (
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                width: imgSize.width,
-                height: imgSize.height,
-                pointerEvents: 'none',
-                opacity: isImageLoaded ? 1 : 0,
-                transition: 'opacity 0.2s ease-in',
-                willChange: isImageLoaded ? 'auto' : 'opacity'
-              }}
-              data-testid="office-map-marker-layer"
-            >
-              {isImageLoaded && (() => {
-                // Стратегия выбора рендеринга маркеров:
-                // 1. Уровень 1 (0-80): VirtualizedMarkerLayer (DOM)
-                // 2. Уровень 2 (80-150): VirtualizedMarkerLayerAdvanced (DOM + react-window)
-                // 3. Уровень 3 (150+): CanvasInteractiveMarkerLayer (Canvas)
-                // Admin режим: всегда VirtualizedMarkerLayer (нужен DOM для drag-drop)
+          {/* OPTIMIZED FOR REACT 19: Выбор режима рендеринга в отдельное место для минимизации перерендеров */}
+          {(() => {
+            const markerCount = locations.length;
+            const inAdminMode = isAdminMode;
 
-                const markerCount = locations.length;
-                const inAdminMode = isAdminMode;
+            // Выбираем оптимальный рендеринг режим (зависит только от markerCount и isAdminMode)
+            let renderMode: 'basic' | 'advanced' | 'canvas' = 'basic';
+            if (!inAdminMode) {
+              if (markerCount > 150) renderMode = 'canvas';
+              else if (markerCount > 80) renderMode = 'advanced';
+            }
 
-                // Выбираем оптимальный рендеринг режим
-                let renderMode: 'basic' | 'advanced' | 'canvas' = 'basic';
-
-                if (!inAdminMode) {
-                  if (markerCount > 150) {
-                    renderMode = 'canvas'; // Canvas при 150+ маркерах
-                  } else if (markerCount > 80) {
-                    renderMode = 'advanced'; // Advanced virtualization при 80-150
-                  }
-                }
-
-                // Рендерим выбранный компонент
-                if (renderMode === 'canvas') {
-                  return (
-                    <CanvasInteractiveMarkerLayer
-                      locations={locations}
-                      isAdminMode={isAdminMode}
-                      highlightedLocationIds={highlightedLocationIdsLocal}
-                      foundLocationId={foundLocationId}
-                      imgSize={imgSize}
-                      scale={scale}
-                      panPosition={panPosition}
-                      onMarkerClick={handleLocationClick}
-                      isImageLoaded={isImageLoaded}
-                      shouldUseCanvas={true}
-                    />
-                  );
-                } else if (renderMode === 'advanced') {
-                  return (
-                    <VirtualizedMarkerLayerAdvanced
-                      locations={locations}
-                      isAdminMode={isAdminMode}
-                      highlightedLocationIds={highlightedLocationIdsLocal}
-                      foundLocationId={foundLocationId}
-                      onClick={handleLocationClick}
-                      imgSize={imgSize}
-                      imgRef={imgRef}
-                      onMarkerMove={handleMarkerMove}
-                      scale={scale}
-                      panPosition={panPosition}
-                      isImageLoaded={isImageLoaded}
-                    />
-                  );
-                } else {
-                  // Базовый режим (0-80 маркеров или админ режим)
-                  return (
-                    <VirtualizedMarkerLayer
-                      locations={locations}
-                      isAdminMode={isAdminMode}
-                      highlightedLocationIds={highlightedLocationIdsLocal}
-                      foundLocationId={foundLocationId}
-                      onClick={handleLocationClick}
-                      imgSize={imgSize}
-                      imgRef={imgRef}
-                      onMarkerMove={handleMarkerMove}
-                      scale={scale}
-                      panPosition={panPosition}
-                      isImageLoaded={isImageLoaded}
-                    />
-                  );
-                }
-              })()}
-            </div>
-            ), [locations, isAdminMode, imgSize, highlightedLocationIdsLocal, foundLocationId, isImageLoaded, scale, panPosition])}
+            // Рендеринг маркер-слоя - этот контейнер меняется только когда нужно, а не при каждом zoom/pan
+            return (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: imgSize.width,
+                  height: imgSize.height,
+                  pointerEvents: 'none',
+                  opacity: isImageLoaded ? 1 : 0,
+                  transition: 'opacity 0.2s ease-in',
+                  willChange: isImageLoaded ? 'auto' : 'opacity'
+                }}
+                data-testid="office-map-marker-layer"
+                key={`${renderMode}-${locations.length}`} // Пересоздаём только при изменении режима
+              >
+                {isImageLoaded && renderMode === 'canvas' && (
+                  <CanvasInteractiveMarkerLayer
+                    locations={locations}
+                    isAdminMode={isAdminMode}
+                    highlightedLocationIds={highlightedLocationIdsLocal}
+                    foundLocationId={foundLocationId}
+                    imgSize={imgSize}
+                    scale={scale}
+                    panPosition={panPosition}
+                    onMarkerClick={handleLocationClick}
+                    isImageLoaded={isImageLoaded}
+                    shouldUseCanvas={true}
+                  />
+                )}
+                {isImageLoaded && renderMode === 'advanced' && (
+                  <VirtualizedMarkerLayerAdvanced
+                    locations={locations}
+                    isAdminMode={isAdminMode}
+                    highlightedLocationIds={highlightedLocationIdsLocal}
+                    foundLocationId={foundLocationId}
+                    onClick={handleLocationClick}
+                    imgSize={imgSize}
+                    imgRef={imgRef}
+                    onMarkerMove={handleMarkerMove}
+                    scale={scale}
+                    panPosition={panPosition}
+                    isImageLoaded={isImageLoaded}
+                  />
+                )}
+                {isImageLoaded && renderMode === 'basic' && (
+                  <VirtualizedMarkerLayer
+                    locations={locations}
+                    isAdminMode={isAdminMode}
+                    highlightedLocationIds={highlightedLocationIdsLocal}
+                    foundLocationId={foundLocationId}
+                    onClick={handleLocationClick}
+                    imgSize={imgSize}
+                    imgRef={imgRef}
+                    onMarkerMove={handleMarkerMove}
+                    scale={scale}
+                    panPosition={panPosition}
+                    isImageLoaded={isImageLoaded}
+                  />
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
