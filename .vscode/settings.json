@@ -7,5 +7,13 @@
     "typescriptreact": "typescriptreact",
     "javascript": "javascript",
     "javascriptreact": "javascriptreact"
+  },
+  "chat.tools.terminal.autoApprove": {
+    "git checkout": true,
+    "npm install": true,
+    "/^npm audit fix 2>&1 \\| tail -40$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   }
 }

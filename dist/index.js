@@ -1298,7 +1298,7 @@ function getSession() {
       httpOnly: true,
       sameSite: "strict",
       // set secure flag automatically when local certs exist
-      secure: function() {
+      secure: (function() {
         try {
           const crtDir = path4.resolve(__dirname4, "..", "crt");
           const pfxPath = path4.join(crtDir, "map.spectrum.int.pfx");
@@ -1309,7 +1309,7 @@ function getSession() {
         } catch (e) {
         }
         return false;
-      }(),
+      })(),
       maxAge: sessionTtl
     }
   });
@@ -2916,12 +2916,12 @@ var __dirname5 = path5.dirname(fileURLToPath5(import.meta.url));
 var projectEnvPath = path5.resolve(__dirname5, "..", ".env");
 var userEnvDir = "C:\\Users\\sedyh.a\\Desktop\\1";
 var legacyEnvPath = path5.resolve(userEnvDir, ".env");
-var dotenvPath = function() {
+var dotenvPath = (function() {
   if (process.env.DOTENV_PATH && fs3.existsSync(process.env.DOTENV_PATH)) return process.env.DOTENV_PATH;
   if (fs3.existsSync(legacyEnvPath)) return legacyEnvPath;
   if (fs3.existsSync(projectEnvPath)) return projectEnvPath;
   return legacyEnvPath;
-}();
+})();
 dotenv2.config({ path: dotenvPath });
 var app = express3();
 app.use(express3.json({ limit: "10mb" }));
