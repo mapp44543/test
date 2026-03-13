@@ -56,9 +56,15 @@ export default function CanvasInteractiveMarkerLayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [hoveredMarkerId, setHoveredMarkerId] = useState<string | null>(null);
+  const hoveredMarkerIdRef = useRef<string | null>(null);
   const markerBoundsRef = useRef<Map<string, MarkerBound>>(new Map());
   const quadtreeRef = useRef<Quadtree | null>(null);
   const colorsCacheRef = useRef(getGlobalColorsCache());
+  
+  // Refs для быстрого доступа к scale и panPosition без пересчёта canvas
+  const scaleRef = useRef<number>(scale);
+  const panPositionRef = useRef<{ x: number; y: number }>(panPosition);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Инициализируем canvas
   useEffect(() => {
@@ -100,6 +106,18 @@ export default function CanvasInteractiveMarkerLayer({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Синхронизируем refs с props для быстрого доступа при отрисовке
+  useEffect(() => {
+    scaleRef.current = scale;
+    panPositionRef.current = panPosition;
+  }, [scale, panPosition]);
+
+  // Обновляем ref для hoveredMarkerId БЕЗ переотрисовки canvas
+  // Это нужно для hit detection в handleCanvasHover, но НЕ должно вызывать перерисовку
+  useEffect(() => {
+    hoveredMarkerIdRef.current = hoveredMarkerId;
+  }, [hoveredMarkerId]);
 
   // Функция для получения цвета статуса маркера (с мемоизацией через кэш)
   const getStatusColor = useCallback((location: Location): string => {
@@ -147,8 +165,8 @@ export default function CanvasInteractiveMarkerLayer({
     ctx.save();
 
     // Применяем трансформацию (панорама и зум)
-    ctx.translate(panPosition.x, panPosition.y);
-    ctx.scale(scale, scale);
+    ctx.translate(panPositionRef.current.x, panPositionRef.current.y);
+    ctx.scale(scaleRef.current, scaleRef.current);
 
     // Очищаем bounds карту
     markerBoundsRef.current.clear();
@@ -166,13 +184,10 @@ export default function CanvasInteractiveMarkerLayer({
       const isHighlighted =
         highlightedLocationIds.includes(location.id) ||
         foundLocationId === location.id;
-      
-      const isHovered = hoveredMarkerId === location.id;
 
-      // Размер маркера
+      // Размер маркера (ТОЛЬКО на основе highlight, НЕ на hover)
       let radius = 15;
       if (isHighlighted) radius = 18;
-      if (isHovered) radius = 20;
 
       // Сохраняем bounds для hit detection и добавляем в Quadtree
       const bound: MarkerBound = {
@@ -219,15 +234,6 @@ export default function CanvasInteractiveMarkerLayer({
         ctx.stroke();
       }
 
-      // Для наведённого маркера добавляем эффект
-      if (isHovered) {
-        ctx.beginPath();
-        ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
-        ctx.strokeStyle = '#e0e7ff'; // indigo-100
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-
       // Рисуем текст для socket маркеров
       if (location.type === 'socket' && location.name) {
         ctx.font = 'bold 10px Arial';
@@ -245,7 +251,7 @@ export default function CanvasInteractiveMarkerLayer({
     });
 
     ctx.restore();
-  }, [ctx, locations, imgSize, scale, panPosition, isImageLoaded, shouldUseCanvas, highlightedLocationIds, foundLocationId, hoveredMarkerId]);
+  }, [ctx, locations, imgSize, isImageLoaded, shouldUseCanvas, highlightedLocationIds, foundLocationId, getStatusColor]);
 
   // Обработка кликов с оптимизированным hit detection через Quadtree
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -260,8 +266,8 @@ export default function CanvasInteractiveMarkerLayer({
     const clientY = (e.clientY - rect.top) * dpr;
 
     // Конвертируем экранные координаты в координаты карты
-    const mapX = (clientX - panPosition.x * dpr) / (scale * dpr);
-    const mapY = (clientY - panPosition.y * dpr) / (scale * dpr);
+    const mapX = (clientX - panPositionRef.current.x * dpr) / (scaleRef.current * dpr);
+    const mapY = (clientY - panPositionRef.current.y * dpr) / (scaleRef.current * dpr);
 
     // Используем Quadtree для быстрого поиска кандидатов (O(log n) вместо O(n))
     const startTime = performance.now();
@@ -293,7 +299,7 @@ export default function CanvasInteractiveMarkerLayer({
     if (foundMarker) {
       onMarkerClick(foundMarker);
     }
-  }, [panPosition, scale, onMarkerClick]);
+  }, [onMarkerClick]);
 
   // Обработка movement для hover effect с оптимизированным поиском через Quadtree
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -305,8 +311,8 @@ export default function CanvasInteractiveMarkerLayer({
     const clientX = (e.clientX - rect.left) * dpr;
     const clientY = (e.clientY - rect.top) * dpr;
 
-    const mapX = (clientX - panPosition.x * dpr) / (scale * dpr);
-    const mapY = (clientY - panPosition.y * dpr) / (scale * dpr);
+    const mapX = (clientX - panPositionRef.current.x * dpr) / (scaleRef.current * dpr);
+    const mapY = (clientY - panPositionRef.current.y * dpr) / (scaleRef.current * dpr);
 
     // Используем Quadtree для быстрого поиска под мышкой (O(log n))
     const candidates = quadtreeRef.current.query(mapX, mapY, 25);
@@ -331,7 +337,7 @@ export default function CanvasInteractiveMarkerLayer({
     if (canvas) {
       canvas.style.cursor = foundMarkerId ? 'pointer' : 'default';
     }
-  }, [panPosition, scale]);
+  }, []);
 
   const handleCanvasMouseLeave = useCallback(() => {
     setHoveredMarkerId(null);
