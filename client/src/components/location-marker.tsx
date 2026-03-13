@@ -320,13 +320,10 @@ function LocationMarkerComponent({
         return iconsCache.acIcons[0].url;
       }
     } else if (location.type === "workstation") {
-      console.log(`[workstation] iconsCache.isLoading=${iconsCache.isLoading}, status=${status}`);
       if (iconsCache.isLoading) {
-        console.warn(`[workstation] Icons still loading, returning undefined`);
         return undefined;
       }
       if (preferredIcon) {
-        console.log(`[workstation] Using preferred icon: ${preferredIcon}`);
         // Check if preferredIcon contains folder path (e.g., "activ/filename.svg")
         // If it does, use it directly; otherwise, determine folder from status
         if (preferredIcon.includes('/')) {
@@ -350,13 +347,10 @@ function LocationMarkerComponent({
         maintenance: iconsCache.workstationRepairIcons,
       };
       const icons = iconsByStatus[status as keyof typeof iconsByStatus] || iconsCache.workstationNonactivIcons;
-      console.log(`[workstation] Icons for status '${status}': ${icons.length} items available`);
       if (icons.length > 0) {
         const iconUrl = icons[0].url;
-        console.log(`[workstation] Selected icon: ${iconUrl}`);
         return iconUrl;
       }
-      console.error(`[workstation] No icons available for status '${status}'`);
     }
 
     return undefined;
@@ -369,26 +363,21 @@ function LocationMarkerComponent({
     // Check if this icon URL has already been loaded before
     if (customIconUrl && loadedIconsCache.has(customIconUrl)) {
       // Icon is already cached, mark it as loaded immediately
-      console.log(`[${location.type}] Icon ${customIconUrl} found in cache, marking as loaded`);
       setIsIconLoaded(true);
     } else if (customIconUrl) {
       // Icon is new, check if it's already in the browser cache using Image API
-      console.log(`[${location.type}] Checking if icon ${customIconUrl} is in browser cache...`);
       const img = new Image();
       img.onload = () => {
-        console.log(`[${location.type}] Icon ${customIconUrl} loaded successfully`);
         loadedIconsCache.add(customIconUrl);
         setIsIconLoaded(true);
       };
       img.onerror = () => {
-        console.error(`[${location.type}] Failed to load icon ${customIconUrl}`);
         setIsIconLoaded(false);
       };
       // Set src to trigger load check
       img.src = customIconUrl;
     } else {
       // No icon URL
-      console.warn(`[${location.type}] No customIconUrl available`);
       setIsIconLoaded(false);
     }
   }, [customIconUrl, location.type]);
@@ -813,19 +802,6 @@ const LocationMarkerMemo = React.memo(LocationMarkerComponent, (prev, next) => {
   const positionChanged = prev.location.x !== next.location.x || prev.location.y !== next.location.y;
   const customFieldsChanged = JSON.stringify(prev.location.customFields) !== JSON.stringify(next.location.customFields);
   
-  if (prev.location.type === "workstation" && (statusChanged || customFieldsChanged)) {
-    console.log(`[workstation-memo] Detected changes for '${next.location.name}':`, {
-      statusChanged,
-      nameChanged,
-      positionChanged,
-      customFieldsChanged,
-      prevStatus: prev.location.status,
-      nextStatus: next.location.status,
-      prevFields: prev.location.customFields,
-      nextFields: next.location.customFields,
-    });
-  }
-  
   const result = (
     // Проверяем основные свойства локации
     prev.location.id === next.location.id &&
@@ -849,10 +825,6 @@ const LocationMarkerMemo = React.memo(LocationMarkerComponent, (prev, next) => {
     prev.onClick === next.onClick &&
     prev.onMarkerMove === next.onMarkerMove
   );
-  
-  if (prev.location.type === "workstation") {
-    console.log(`[workstation-memo] Re-render decision for '${next.location.name}': ${result ? 'SKIP (no changes)' : 'RENDER (changes detected)'}`);
-  }
   
   return result;
 });

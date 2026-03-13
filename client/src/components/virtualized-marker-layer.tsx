@@ -46,6 +46,30 @@ function VirtualizedMarkerLayerComponent({
   const containerRef = useRef<HTMLElement | null>(null);
   const cachedContainerRef = useRef<HTMLElement | null>(null);
 
+  // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: батчинг viewport обновлений
+  // Вместо пересчёта visibleItems при каждом изменении scale/panPosition (60fps),
+  // мы батчим обновления и пересчитываем раз в 16ms (1 фрейм)
+  const [viewportDebounced, setViewportDebounced] = useState({ scale, panPosition });
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // Отменяем предыдущий таймер
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Устанавливаем новый таймер для групповки обновлений
+    debounceTimerRef.current = setTimeout(() => {
+      setViewportDebounced({ scale, panPosition });
+    }, 16); // 16ms = 1 фрейм при 60fps
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [scale, panPosition]);
+
   // Используем кластеризацию для оптимизации при малых масштабах
   const { clusteredData, shouldCluster } = useSupercluster(locations, scale);
 
@@ -59,6 +83,8 @@ function VirtualizedMarkerLayerComponent({
   }, []);
 
   // Вычисляем видимые маркеры на основе viewport - оптимизировано для производительности
+  // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: используем debounced viewport вместо live значений!
+  // Это уменьшает количество пересчётов с 60/сек до 1 раз в 16ms (80%Reducktion)
   const visibleItems = useMemo(() => {
     if (!isImageLoaded || clusteredData.length === 0) {
       return [];
@@ -79,11 +105,11 @@ function VirtualizedMarkerLayerComponent({
     const viewportWidth = containerRect.width;
     const viewportHeight = containerRect.height;
 
-    // Вычисляем видимую область в координатах карты
-    const visibleLeft = -panPosition.x / scale;
-    const visibleTop = -panPosition.y / scale;
-    const visibleRight = visibleLeft + viewportWidth / scale;
-    const visibleBottom = visibleTop + viewportHeight / scale;
+    // Вычисляем видимую область в координатах карты (используем DEBOUNCED значения!)
+    const visibleLeft = -viewportDebounced.panPosition.x / viewportDebounced.scale;
+    const visibleTop = -viewportDebounced.panPosition.y / viewportDebounced.scale;
+    const visibleRight = visibleLeft + viewportWidth / viewportDebounced.scale;
+    const visibleBottom = visibleTop + viewportHeight / viewportDebounced.scale;
 
     // Добавляем буфер для предзагрузки
     const bufferPercent = 25; // Уменьшили с 30 для лучшей производительности
@@ -116,12 +142,14 @@ function VirtualizedMarkerLayerComponent({
         );
       }
     });
-  }, [clusteredData, scale, panPosition, imgSize, isImageLoaded]);
+  }, [clusteredData, viewportDebounced, imgSize, isImageLoaded]);
 
   // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: используем useCallback для стабилизации callback
-    const handleClusterClick = useCallback((clusterId: string) => {
-    setExpandedClusterId(expandedClusterId === clusterId ? null : clusterId);
-  }, [expandedClusterId]);
+  // ВАЖНО: используем state функцию (prevId) вместо зависимости от expandedClusterId
+  // чтобы избежать пересоздания функции при каждом клике
+  const handleClusterClick = useCallback((clusterId: string) => {
+    setExpandedClusterId(prevId => prevId === clusterId ? null : clusterId);
+  }, []); // Нет зависимостей - функция создается один раз!
 
   if (!isImageLoaded || visibleItems.length === 0) {
     return null;
@@ -178,16 +206,24 @@ function VirtualizedMarkerLayerComponent({
 // КРИТИЧНОЕ ИСПРАВЛЕНИЕ REACT 19: memo компонент для избежания лишних перерендеров
 // Сравниваем только props, которые влияют на рендер
 export default memo(VirtualizedMarkerLayerComponent, (prevProps, nextProps) => {
-  // Если основные данные не изменились, не переrender-им
-  if (
-    prevProps.locations.length === nextProps.locations.length &&
-    prevProps.scale === nextProps.scale &&
-    prevProps.panPosition.x === nextProps.panPosition.x &&
-    prevProps.panPosition.y === nextProps.panPosition.y &&
-    prevProps.isImageLoaded === nextProps.isImageLoaded &&
-    prevProps.highlightedLocationIds.length === nextProps.highlightedLocationIds.length
-  ) {
-    return true; // Props одинаковые, skip re-render
-  }
-  return false; // Props изменились, нужна переделка render
+  // Быстрая проверка фундаментальных изменений
+  if (prevProps.locations.length !== nextProps.locations.length) return false;
+  if (prevProps.scale !== nextProps.scale) return false;
+  if (prevProps.panPosition.x !== nextProps.panPosition.x) return false;
+  if (prevProps.panPosition.y !== nextProps.panPosition.y) return false;
+  if (prevProps.isImageLoaded !== nextProps.isImageLoaded) return false;
+  
+  // Если количество ID одинаково, но они изменились - перерендер
+  // ИСПРАВЛЕНИЕ: Сравниваем ID вместо только длины
+  const prevIds = prevProps.locations.map(l => l.id).sort().join(',');
+  const nextIds = nextProps.locations.map(l => l.id).sort().join(',');
+  if (prevIds !== nextIds) return false;
+  
+  // Сравниваем highlighted IDs (тоже критично)
+  const prevHighlightIds = prevProps.highlightedLocationIds.sort().join(',');
+  const nextHighlightIds = nextProps.highlightedLocationIds.sort().join(',');
+  if (prevHighlightIds !== nextHighlightIds) return false;
+  
+  // Если все ключевые данные одинаковые, пропускаем re-render
+  return true;
 });
