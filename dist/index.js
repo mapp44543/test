@@ -952,11 +952,7 @@ var init_socket_port_scheduler = __esm({
         winston2.format.splat(),
         winston2.format.json()
       ),
-      defaultMeta: { service: "socket-port-scheduler" },
-      transports: [
-        new winston2.transports.Console(),
-        new winston2.transports.File({ filename: "logs/socket-port-scheduler.log" })
-      ]
+      defaultMeta: { service: "socket-port-scheduler" }
     });
     SocketPortScheduler = class {
       isRunning = false;
