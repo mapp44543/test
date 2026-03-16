@@ -1,0 +1,176 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Enable smooth scrolling for better UX */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Optimize performance with will-change hints and GPU acceleration */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --background: #f2f6fb;
+  --foreground: #0f1724;
+  --card: #ffffff;
+  --card-foreground: #0f1724;
+  --popover: #ffffff;
+  --popover-foreground: #0f1724;
+  --primary: #2aa7ff;
+  --primary-foreground: #ffffff;
+  --secondary: #e9f4fb;
+  --secondary-foreground: #0f1724;
+  --muted: #f3f6fa;
+  --muted-foreground: #5b6b7a;
+  --accent: #eaf6ff;
+  --accent-foreground: #0f1724;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #ffffff;
+  --border: #e6eef7;
+  --input: #f0f4f8;
+  --ring: #2aa7ff;
+  --chart-1: #2aa7ff;
+  --chart-2: #2edba3;
+  --chart-3: #ffd166;
+  --chart-4: #7c5cff;
+  --chart-5: #ff6b9a;
+  --sidebar: #f8fbff;
+  --sidebar-foreground: #0f1724;
+  --sidebar-primary: #2aa7ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaf6ff;
+  --sidebar-accent-foreground: #0f1724;
+  --sidebar-border: #e6eef7;
+  --sidebar-ring: #2aa7ff;
+  --font-sans: "Inter", "system-ui", "sans-serif";
+  --font-serif: "Georgia", "serif";
+  --font-mono: "Menlo", "monospace";
+  --radius: 0.5rem;
+  --shadow-2xs: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00);
+  --shadow-xs: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00);
+  --shadow-sm: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 1px 2px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
+  --shadow: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 1px 2px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
+  --shadow-md: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 2px 4px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
+  --shadow-lg: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 4px 6px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
+  --shadow-xl: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00), 0px 8px 10px -1px hsl(221.2, 83.2%, 53.3%, 0.00);
+  --shadow-2xl: 0px 2px 0px 0px hsl(221.2, 83.2%, 53.3%, 0.00);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --background: #071122;
+  --foreground: #e6eef7;
+  --card: #0f1724;
+  --card-foreground: #e6eef7;
+  --popover: #0f1724;
+  --popover-foreground: #e6eef7;
+  --primary: #58a6ff;
+  --primary-foreground: #071122;
+  --secondary: #0e1726;
+  --secondary-foreground: #e6eef7;
+  --muted: #0e1726;
+  --muted-foreground: #9fb0c4;
+  --accent: #071f2c;
+  --accent-foreground: #e6eef7;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #071122;
+  --border: #15202b;
+  --input: #0f1724;
+  --ring: #58a6ff;
+  --chart-1: #58a6ff;
+  --chart-2: #2edba3;
+  --chart-3: #ffd166;
+  --chart-4: #7c5cff;
+  --chart-5: #ff6b9a;
+  --sidebar: #071122;
+  --sidebar-foreground: #e6eef7;
+  --sidebar-primary: #58a6ff;
+  --sidebar-primary-foreground: #071122;
+  --sidebar-accent: #083145;
+  --sidebar-accent-foreground: #cfe8ff;
+  --sidebar-border: #15202b;
+  --sidebar-ring: #58a6ff;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Office space grid pattern */
+.office-space {
+  background: linear-gradient(45deg, #f8fafc 25%, transparent 25%), 
+              linear-gradient(-45deg, #f8fafc 25%, transparent 25%), 
+              linear-gradient(45deg, transparent 75%, #f8fafc 75%), 
+              linear-gradient(-45deg, transparent 75%, #f8fafc 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* Location marker animations (performance-tuned) */
+.location-marker {
+  transition: transform 120ms ease-in-out;
+  /* Don't animate all properties — only transform for better performance */
+}
+
+.location-marker:hover {
+  /* Disable expensive hover effects */
+  transform: none;
+  box-shadow: none;
+}
+
+/* Status color classes */
+.available {
+  background: linear-gradient(135deg, hsl(142, 76%, 36%) 0%, hsl(142, 76%, 26%) 100%);
+}
+
+.occupied {
+  background: linear-gradient(135deg, hsl(25, 95%, 53%) 0%, hsl(25, 95%, 43%) 100%);
+}
+
+.maintenance {
+  background: linear-gradient(135deg, hsl(48, 96%, 53%) 0%, hsl(48, 96%, 43%) 100%);
+}
+
+/* Real-time indicator pulse animation — disabled for performance */
+.realtime-indicator {
+  animation: none;
+}
+
+/* Drag handle cursor */
+.drag-handle {
+  cursor: move;
+}
+
+/* Modal backdrop — replaced blur with semi-transparent overlay for performance */
+.modal-backdrop {
+  backdrop-filter: none;
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* Performance: disable most box-shadows used by UI (toasts, modals, dropdowns) */
+.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl {
+  box-shadow: none !important;
+}
+
+/* When dragging a marker, prevent text selection on the whole page */
+body.dragging-marker-no-select,
+html.dragging-marker-no-select {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  touch-action: none !important;
+}

@@ -1,0 +1,24 @@
+{
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore",
+  "tailwindCSS.includeLanguages": {
+    "typescript": "typescript",
+    "typescriptreact": "typescriptreact",
+    "javascript": "javascript",
+    "javascriptreact": "javascriptreact"
+  },
+  "chat.tools.terminal.autoApprove": {
+    "git checkout": true,
+    "npm install": true,
+    "/^npm audit fix 2>&1 \\| tail -40$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "uname": true,
+    "/^sudo apt-get update && sudo apt-get install -y curl 2>&1 \\| tail -5$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}
