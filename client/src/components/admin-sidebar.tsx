@@ -178,6 +178,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocationsCache } from "@/context/locations-data-cache";
 import { Plus, GripVertical, Edit, Trash, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -437,10 +438,14 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
   };
 
   // Добавляем мутации для обновления и удаления локации
+  const locationsCache = useLocationsCache();
+  
   const updateLocationMutation = useMutation({
     mutationFn: async (payload: Partial<Location> & { id: string }) => apiRequest('PUT', `/api/admin/locations/${payload.id}`, payload),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+      // Инвалидируем кеш для конкретной локации
+      locationsCache.clearLocationCache(variables.id);
       toast({ title: 'Успех', description: 'Локация обновлена' });
     },
     onError: (err: any) => toast({ title: 'Ошибка', description: err?.message || 'Не удалось обновить локацию', variant: 'destructive' }),
@@ -448,8 +453,10 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
 
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: string) => apiRequest('DELETE', `/api/admin/locations/${id}`),
-    onSuccess: () => {
+    onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+      // Инвалидируем кеш для конкретной локации
+      locationsCache.clearLocationCache(deletedId);
       toast({ title: 'Успех', description: 'Локация удалена' });
     },
     onError: (err: any) => toast({ title: 'Ошибка', description: err?.message || 'Не удалось удалить локацию', variant: 'destructive' }),
@@ -574,13 +581,16 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
         const r2 = await apiRequest('POST', `/api/admin/locations/${location.id}/avatar-from-ad?login=${encodeURIComponent(adLogin)}`, {} as any);
         if (r2.status === 201) {
           await queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+          locationsCache.clearLocationCache(location.id);
           toast({ title: 'Успех', description: 'Аватар сотрудника загружен из AD' });
         } else {
           const j = await r2.json().catch(() => ({}));
           await queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+          locationsCache.clearLocationCache(location.id);
         }
       } catch (e) {
         await queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+        locationsCache.clearLocationCache(location.id);
       }
       toast({ title: 'Успех', description: 'Рабочее место добавлено' });
       setIsAddModalOpen(false);

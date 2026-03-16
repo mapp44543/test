@@ -7,6 +7,7 @@ import { mapClientToImagePercent, formatRelativeTime } from "@/lib/utils";
 import { GripVertical } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useIconsCache } from "@/context/icons-cache";
+import { useLocationsCache } from "@/context/locations-data-cache";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { LocationHighlightRing } from "@/components/location-highlight-ring";
 import type { Location } from "@shared/schema";
@@ -227,6 +228,9 @@ function LocationMarkerComponent({
 
   // Получаем кэшированные иконки вместо множественных запросов на каждый маркер
   const iconsCache = useIconsCache();
+  
+  // Получаем кэш для информации о локациях (аватарки и т.д.)
+  const locationsCache = useLocationsCache();
 
   // Ensure we remove any global no-select class if component unmounts unexpectedly
   useEffect(() => {
@@ -239,13 +243,27 @@ function LocationMarkerComponent({
   }, []);
 
   // Загружаем аватарку пользователя для рабочего места (только когда видимый маркер рендерится)
+  // Используем локальный кеш для предотвращения повторных запросов при движении мыши
   const { data: avatar } = useQuery({
     queryKey: [`/api/locations/${location.id}/avatar`],
     queryFn: async () => {
+      // Проверяем кеш перед выполнением запроса
+      const cachedAvatar = locationsCache.getAvatarFromCache(location.id);
+      if (cachedAvatar !== false) {
+        return cachedAvatar;
+      }
+
       try {
         const response = await fetch(`/api/locations/${location.id}/avatar`);
         if (!response.ok) return null;
-        return response.json();
+        const avatarData = await response.json();
+        
+        // Кешируем полученные данные
+        if (avatarData) {
+          locationsCache.cacheAvatar(location.id, avatarData);
+        }
+        
+        return avatarData;
       } catch {
         return null;
       }
@@ -254,7 +272,8 @@ function LocationMarkerComponent({
     // Отключаем query если маркер не видимый или тип не рабочее место
     // Увеличиваем staleTime чтобы уменьшить количество запросов
     enabled: location.type === "workstation" && !!location.id && !!isVisible,
-    staleTime: 10 * 60 * 1000, // 10 минут (было 5)
+    staleTime: Infinity, // Данные никогда не устаревают (только при обновлении страницы)
+    gcTime: Infinity, // Держим в памяти навсегда (очищается только при F5)
     retry: false, // Не пересылаем 404 ошибки
   });
   

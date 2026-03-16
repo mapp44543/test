@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { IconsCacheProvider } from "@/context/icons-cache";
+import { LocationsCacheProvider } from "@/context/locations-data-cache";
 import Home from "@/pages/home";
 import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
@@ -32,10 +33,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <IconsCacheProvider>
-          <Toaster />
-          <AppContent />
-        </IconsCacheProvider>
+        <LocationsCacheProvider>
+          <IconsCacheProvider>
+            <Toaster />
+            <AppContent />
+          </IconsCacheProvider>
+        </LocationsCacheProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

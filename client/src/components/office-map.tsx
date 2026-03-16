@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { useLocationsCache } from "@/context/locations-data-cache";
 import { getOptimizedImageUrl } from "@/lib/image-optimization";
 import LocationMarker from "./location-marker";
 import VirtualizedMarkerLayer from "./virtualized-marker-layer";
@@ -447,20 +448,26 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     return [...visibleFloors].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   }, [visibleFloors]);
   const queryClient = useQueryClient();
+  const locationsCache = useLocationsCache();
+  
   const updateLocationMutation = useMutation({
     mutationFn: async (updatedLocation: Partial<Location> & { id: string }) => {
       return apiRequest('PUT', `/api/admin/locations/${updatedLocation.id}`, updatedLocation);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Инвалидируем React Query кеш и локальный кеш
       queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
+      locationsCache.clearLocationCache(variables.id);
     },
   });
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest('DELETE', `/api/admin/locations/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_, deletedId) => {
+      // Инвалидируем React Query кеш и локальный кеш
       queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
+      locationsCache.clearLocationCache(deletedId);
     },
   });
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
