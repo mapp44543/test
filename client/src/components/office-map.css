@@ -25,13 +25,10 @@
   -moz-user-select: none;
   -ms-user-select: none;
   /* GPU-ускорение для гладкого движения */
-  -webkit-transform: translate3d(0, 0, 0);
   transform: translate3d(0, 0, 0);
   /* Предотвращаем мигание при преобразованиях */
   backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  -webkit-perspective: 1000;
-  perspective: 1000;
+  perspective: 1000px;
   /* По умолчанию нет переходов - жесткое управление через inline styles */
   transition: none;
 }
@@ -63,16 +60,13 @@
   pointer-events: none; /* Отключает события мыши на изображении */
   -webkit-user-drag: none; /* Отключает перетаскивание в WebKit */
   -khtml-user-drag: none; /* Отключает перетаскивание в KHTML */
-  -moz-user-drag: none; /* Отключает перетаскивание в Firefox */
   -o-user-drag: none; /* Отключает перетаскивание в Opera */
   /* Улучшаем качество при масштабировании - сохраняем чёткость */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   /* GPU-ускорение */
-  -webkit-transform: translate3d(0, 0, 0);
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   will-change: auto;
 }
 
@@ -80,13 +74,10 @@
   pointer-events: none; /* Отключает события мыши на SVG объекте, чтобы они проходили к контейнеру */
   -webkit-user-drag: none; /* Отключает перетаскивание в WebKit */
   -khtml-user-drag: none; /* Отключает перетаскивание в KHTML */
-  -moz-user-drag: none; /* Отключает перетаскивание в Firefox */
   -o-user-drag: none; /* Отключает перетаскивание в Opera */
   /* GPU-ускорение для SVG */
-  -webkit-transform: translate3d(0, 0, 0);
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   will-change: auto;
 }
 

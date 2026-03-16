@@ -494,23 +494,23 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
         const centerX = Math.round(imgSize.width / 2);
         const centerY = Math.round(imgSize.height / 2);
 
-  // Effect to synchronize image size when floor or URL changes
+  // Unified effect: Synchronize image size on floor change or container resize
+  // Combines floor-change syncing + ResizeObserver into one handler
   useEffect(() => {
     // Reset image loaded flag when changing floors
     setIsImageLoaded(false);
     setIsFloorTransitioning(true);
-    isInitializedRef.current = false; // Allow re-initialization on new floor
-    // Reset zoom and pan to default when changing floors for smooth transition
+    isInitializedRef.current = false;
     setScale(0.85);
     setPanPosition({ x: 0, y: 0 });
 
     if (!imgRef.current) return;
 
+    // Define the sync function once, reuse for both floor changes and resize events
     const syncImageSize = () => {
       if (!imgRef.current) return;
 
       if (currentFloorObj?.mimeType === "image/svg+xml") {
-        // For SVG objects, use real rendered dimensions
         const objElement = imgRef.current as HTMLObjectElement;
         const realWidth = objElement.clientWidth;
         const realHeight = objElement.clientHeight;
@@ -520,7 +520,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
           setImgSize({ width: 1000, height: 800 });
         }
       } else {
-        // For regular images, use real rendered dimensions
         const imgElement = imgRef.current as HTMLImageElement;
         if (imgElement.complete) {
           const realWidth = imgElement.width;
@@ -534,56 +533,28 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       }
     };
 
-    // Sync immediately and after delays to catch any timing issues
+    // Sync immediately
     syncImageSize();
-    const timer1 = setTimeout(syncImageSize, 150);
-    const timer2 = setTimeout(syncImageSize, 350);
+    
+    // One fallback timeout for SVG/async loading (100ms is enough for most cases)
+    const timerId = setTimeout(syncImageSize, 100);
 
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, [imageUrl, currentFloor, currentFloorObj]);
-
-  // CRITICAL: Re-sync image size when container resizes (e.g., sidebar toggle)
-  // This ensures markers remain correctly positioned in both admin and public modes
-  useEffect(() => {
-    const handleContainerResize = () => {
-      if (!imgRef.current) return;
-
-      if (currentFloorObj?.mimeType === "image/svg+xml") {
-        const objElement = imgRef.current as HTMLObjectElement;
-        const realWidth = objElement.clientWidth;
-        const realHeight = objElement.clientHeight;
-        if (realWidth && realHeight) {
-          setImgSize({ width: realWidth, height: realHeight });
-        }
-      } else {
-        const imgElement = imgRef.current as HTMLImageElement;
-        if (imgElement.complete) {
-          const realWidth = imgElement.width;
-          const realHeight = imgElement.height;
-          if (realWidth && realHeight) {
-            setImgSize({ width: realWidth, height: realHeight });
-          }
-        }
-      }
-    };
-
-    // Use ResizeObserver to detect container size changes
+    // Setup ResizeObserver for container resizes (sidebar toggle, window resize, etc)
     let resizeObserver: ResizeObserver | null = null;
-
+    
     if (imgRef.current && typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(handleContainerResize);
+      // Use ResizeObserver for responsive container changes
+      resizeObserver = new ResizeObserver(() => syncImageSize());
       resizeObserver.observe(imgRef.current);
     }
 
     return () => {
+      clearTimeout(timerId);
       if (resizeObserver) {
         resizeObserver.disconnect();
       }
     };
-  }, [currentFloorObj?.mimeType]);
+  }, [imageUrl, currentFloor, currentFloorObj]);
 
   // --- Получение ссылок из API ---
   const { data: publicLinks = [] } = useQuery<PublicLink[]>({

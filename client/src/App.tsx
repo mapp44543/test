@@ -7,7 +7,6 @@ import { IconsCacheProvider } from "@/context/icons-cache";
 import Home from "@/pages/home";
 import Admin from "@/pages/admin";
 import NotFound from "@/pages/not-found";
-import { usePreloadIcons } from "@/hooks/use-preload-icons";
 
 function Router() {
   return (
@@ -20,9 +19,8 @@ function Router() {
 }
 
 function AppContent() {
-  // Preload all icon types when app starts to prevent flickering
-  usePreloadIcons();
-
+  // Icons are now preloaded lazily by IconsCacheProvider
+  // Removing synchronous preloading to prevent 2-5s startup freeze
   return (
     <Router />
   );

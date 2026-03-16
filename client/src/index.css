@@ -12,7 +12,6 @@ html {
 /* Optimize performance with will-change hints and GPU acceleration */
 body {
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 :root {

@@ -60,11 +60,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imgSrc: ["'self'", "data:", "https:"],
         objectSrc: ["'self'"],
         connectSrc: ["'self'", "wss:", "ws:", "https://fonts.gstatic.com"],
+        frameAncestors: ["'self'"], // Prevents clickjacking; makes X-Frame-Options redundant
       },
     },
     hsts: { maxAge: 31536000, includeSubDomains: true },
     noSniff: true,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    frameguard: false, // Disable X-Frame-Options to avoid conflict with CSP frame-ancestors
   }));
 
   // CORS configuration

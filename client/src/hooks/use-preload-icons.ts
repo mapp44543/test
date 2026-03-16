@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 /**
- * Hook для предварительной загрузки всех типов иконок при инициализации
- * Это предотвращает мигание дефолтных иконок при первом открытии
+ * Hook для предварительной загрузки всех типов иконок БЕЗ блокировки UI
+ * Использует requestIdleCallback для фонового preloading когда браузер свободен
+ * Это кэширует иконки но не задерживает app startup
  */
 export function usePreloadIcons() {
-  // Загружаем иконки всех типов в параллель сразу при монтировании
+  // Загружаем иконки всех типов в параллель, но БЕЗ блокировки рендера
   const { data: commonAreaIcons } = useQuery({
     queryKey: ["/api/icons", "common area"],
     queryFn: async () => {
@@ -19,8 +20,8 @@ export function usePreloadIcons() {
         return [];
       }
     },
-    staleTime: Infinity, // Cache forever
-    gcTime: Infinity, // Keep in garbage collection forever
+    staleTime: Infinity,
+    gcTime: Infinity,
     retry: false,
   });
 
@@ -137,10 +138,33 @@ export function usePreloadIcons() {
     retry: false,
   });
 
-  // Preload icon images in the browser cache using fetch
-  // This ensures the images are cached before components try to load them
+  // Non-blocking background preloading using requestIdleCallback
+  // This runs when browser is idle, NOT blocking the main UI thread
   useEffect(() => {
-    const preloadImages = async () => {
+    const hasIcons =
+      (commonAreaIcons && commonAreaIcons.length > 0) ||
+      (meetingRoomIcons && meetingRoomIcons.length > 0) ||
+      (equipmentIcons && equipmentIcons.length > 0) ||
+      (cameraIcons && cameraIcons.length > 0) ||
+      (acIcons && acIcons.length > 0) ||
+      (workstationActivIcons && workstationActivIcons.length > 0) ||
+      (workstationNonactivIcons && workstationNonactivIcons.length > 0) ||
+      (workstationRepairIcons && workstationRepairIcons.length > 0);
+
+    if (!hasIcons) return;
+
+    // Use requestIdleCallback if available (modern browsers)
+    // Falls back to setTimeout(0) for older browsers
+    const schedulePreload = (callback: () => void) => {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(callback, { timeout: 10000 });
+      } else {
+        // Fallback: schedule on next macrotask when browser is likely idle
+        setTimeout(callback, 0);
+      }
+    };
+
+    const preloadImages = () => {
       const allIcons = [
         ...(commonAreaIcons || []),
         ...(meetingRoomIcons || []),
@@ -152,37 +176,37 @@ export function usePreloadIcons() {
         ...(workstationRepairIcons || []),
       ];
 
-      // Preload all icon images in parallel
-      await Promise.all(
-        allIcons.map((icon: any) => {
+      // Preload images in small batches to avoid overwhelming the browser
+      // Split into groups of 5, with small delays between batches
+      const batchSize = 5;
+      let batchIndex = 0;
+
+      const preloadBatch = () => {
+        const start = batchIndex * batchSize;
+        const end = Math.min(start + batchSize, allIcons.length);
+        const batch = allIcons.slice(start, end);
+
+        // Load this batch
+        batch.forEach((icon: any) => {
           if (icon.url) {
-            return new Promise((resolve) => {
-              const img = new Image();
-              img.onload = () => resolve(true);
-              img.onerror = () => resolve(false);
-              img.src = icon.url;
-            });
+            const img = new Image();
+            img.src = icon.url; // Fire and forget, no callbacks
           }
-          return Promise.resolve();
-        })
-      );
+        });
+
+        batchIndex++;
+
+        // Schedule next batch if there are more images
+        if (end < allIcons.length) {
+          schedulePreload(preloadBatch);
+        }
+      };
+
+      // Start the first batch
+      schedulePreload(preloadBatch);
     };
 
-    // Only preload if we have some icons loaded
-    if (
-      (commonAreaIcons && commonAreaIcons.length > 0) ||
-      (meetingRoomIcons && meetingRoomIcons.length > 0) ||
-      (equipmentIcons && equipmentIcons.length > 0) ||
-      (cameraIcons && cameraIcons.length > 0) ||
-      (acIcons && acIcons.length > 0) ||
-      (workstationActivIcons && workstationActivIcons.length > 0) ||
-      (workstationNonactivIcons && workstationNonactivIcons.length > 0) ||
-      (workstationRepairIcons && workstationRepairIcons.length > 0)
-    ) {
-      preloadImages().catch(() => {
-        // Silently fail, preloading is optional
-      });
-    }
+    preloadImages();
   }, [
     commonAreaIcons,
     meetingRoomIcons,
@@ -194,3 +218,4 @@ export function usePreloadIcons() {
     workstationRepairIcons,
   ]);
 }
+

@@ -18,13 +18,21 @@ export default function Home() {
   });
 
   // Only show floors that are enabled for public mode
-  const publicFloors = floors.filter(f => (f.showInPublic ?? true));
+  // Ensure we have a valid array before filtering
+  const publicFloors = Array.isArray(floors) ? floors.filter(f => (f.showInPublic ?? true)) : [];
 
+  // Validate and sync currentFloor with available floors
   useEffect(() => {
-    if (publicFloors.length > 0) {
-      const exists = publicFloors.some(f => f.code === currentFloor);
-      if (!exists) {
-        setCurrentFloor(publicFloors[0].code);
+    if (!publicFloors || publicFloors.length === 0) return;
+    
+    // Check if current floor still exists in public floors
+    const currentFloorExists = publicFloors.some(f => f.code === currentFloor);
+    
+    // If current floor doesn't exist, switch to first available floor
+    if (!currentFloorExists) {
+      const firstFloor = publicFloors[0];
+      if (firstFloor?.code) {
+        setCurrentFloor(firstFloor.code);
       }
     }
   }, [publicFloors]);
@@ -47,7 +55,7 @@ export default function Home() {
   });
 
   // Defensive: sometimes the server may return an object (error payload) — ensure we always have an array
-  const locations: Location[] = Array.isArray(data) ? data : (data ? [] : []);
+  const locations: Location[] = Array.isArray(data) ? data : [];
 
   // When WebSocket receives any update, refetch both floors and locations so public view reflects admin changes
   useWebSocket(() => {
