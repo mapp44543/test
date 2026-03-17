@@ -113,27 +113,21 @@ export default function CanvasInteractiveMarkerLayer({
     const status = location.status || 'available';
     
     if (location.type === 'common-area') {
-      if (iconsCache.isLoading) return undefined;
       if (preferredIcon) return `/icons/common%20area/${preferredIcon}`;
       if (iconsCache.commonAreaIcons.length > 0) return iconsCache.commonAreaIcons[0].url;
     } else if (location.type === 'meeting-room') {
-      if (iconsCache.isLoading) return undefined;
       if (preferredIcon) return `/icons/negotiation%20room/${preferredIcon}`;
       if (iconsCache.meetingRoomIcons.length > 0) return iconsCache.meetingRoomIcons[0].url;
     } else if (location.type === 'equipment') {
-      if (iconsCache.isLoading) return undefined;
       if (preferredIcon) return `/icons/print/${preferredIcon}`;
       if (iconsCache.equipmentIcons.length > 0) return iconsCache.equipmentIcons[0].url;
     } else if (location.type === 'camera') {
-      if (iconsCache.isLoading) return undefined;
       if (preferredIcon) return `/icons/Камера/${preferredIcon}`;
       if (iconsCache.cameraIcons.length > 0) return iconsCache.cameraIcons[0].url;
     } else if (location.type === 'ac') {
-      if (iconsCache.isLoading) return undefined;
       if (preferredIcon) return `/icons/ac/${preferredIcon}`;
       if (iconsCache.acIcons.length > 0) return iconsCache.acIcons[0].url;
     } else if (location.type === 'workstation') {
-      if (iconsCache.isLoading) return undefined;
       if (preferredIcon) return `/icons/user/${preferredIcon}`;
       const iconsByStatus = {
         occupied: iconsCache.workstationActivIcons,

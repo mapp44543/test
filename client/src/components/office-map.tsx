@@ -783,10 +783,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
               { ...data, id: selectedLocation.id },
               {
                 onSuccess: () => {
-                  // Invalidate all location queries to force refetch
-                  queryClient.invalidateQueries({ queryKey: ["/api/locations"], exact: false });
-                  // Also manually update the cache for the current floor with refetch
-                  queryClient.refetchQueries({ queryKey: ["/api/locations", currentFloor] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
                   if (onSuccess) onSuccess();
                 },
                 onError: () => {
@@ -798,7 +795,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
           deleteLocation={(onSuccess, onError) => {
             deleteLocationMutation.mutate(selectedLocation.id, {
               onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: ["/api/locations"], exact: false });
+                queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
                 if (refetchLocations) refetchLocations();
                 setSelectedLocation(null);
                 if (onSuccess) onSuccess();

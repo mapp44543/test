@@ -251,10 +251,6 @@ function LocationMarkerComponent({
     const status = location.status || "available";
     
     if (location.type === "common-area") {
-      // Return undefined while loading - prevents showing fallback icons
-      if (iconsCache.isLoading) {
-        return undefined;
-      }
       if (preferredIcon) {
         return `/icons/common%20area/${preferredIcon}`;
       }
@@ -262,9 +258,6 @@ function LocationMarkerComponent({
         return iconsCache.commonAreaIcons[0].url;
       }
     } else if (location.type === "meeting-room") {
-      if (iconsCache.isLoading) {
-        return undefined;
-      }
       if (preferredIcon) {
         return `/icons/negotiation%20room/${preferredIcon}`;
       }
@@ -272,9 +265,6 @@ function LocationMarkerComponent({
         return iconsCache.meetingRoomIcons[0].url;
       }
     } else if (location.type === "equipment") {
-      if (iconsCache.isLoading) {
-        return undefined;
-      }
       if (preferredIcon) {
         return `/icons/print/${preferredIcon}`;
       }
@@ -282,9 +272,6 @@ function LocationMarkerComponent({
         return iconsCache.equipmentIcons[0].url;
       }
     } else if (location.type === "camera") {
-      if (iconsCache.isLoading) {
-        return undefined;
-      }
       if (preferredIcon) {
         return `/icons/Камера/${preferredIcon}`;
       }
@@ -292,9 +279,6 @@ function LocationMarkerComponent({
         return iconsCache.cameraIcons[0].url;
       }
     } else if (location.type === "ac") {
-      if (iconsCache.isLoading) {
-        return undefined;
-      }
       if (preferredIcon) {
         return `/icons/ac/${preferredIcon}`;
       }
@@ -302,9 +286,6 @@ function LocationMarkerComponent({
         return iconsCache.acIcons[0].url;
       }
     } else if (location.type === "workstation") {
-      if (iconsCache.isLoading) {
-        return undefined;
-      }
       if (preferredIcon) {
         return `/icons/user/${preferredIcon}`;
       }

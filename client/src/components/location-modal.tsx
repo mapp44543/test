@@ -184,28 +184,6 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
     }
   }, [customIcons, meetingRoomIcons, equipmentIcons, cameraIcons, acIcons, workstationActivIcons, workstationNonactivIcons, workstationRepairIcons, formData.type, formData.status]);
 
-  // When workstation status changes, update selected icon to match the new status
-  React.useEffect(() => {
-    if (formData.type === 'workstation' && formData.status) {
-      const currentStatus = formData.status || "available";
-      setWorkstationStatus(currentStatus);
-      
-      // Only update the icon if it wasn't explicitly stored
-      const storedIcon = initialCustomFields.customIcon as string | undefined;
-      if (!storedIcon) {
-        const statusMap: Record<string, typeof workstationActivIcons> = {
-          "occupied": workstationActivIcons,
-          "available": workstationNonactivIcons,
-          "maintenance": workstationRepairIcons
-        };
-        const iconsForStatus = statusMap[currentStatus] || workstationNonactivIcons;
-        if (iconsForStatus.length > 0) {
-          setSelectedWorkstationIcon(iconsForStatus[0].name);
-        }
-      }
-    }
-  }, [formData.status, formData.type, workstationActivIcons, workstationNonactivIcons, workstationRepairIcons]);
-
   const [customFields, setCustomFields] = useState<CustomField[]>(() => {
     // Не показываем только базовые служебные поля
     const hide = new Set(['department', 'position', 'email', 'telegram', 'logonCount', 'avatar', 'port', 'Port', 'customIcon']);
