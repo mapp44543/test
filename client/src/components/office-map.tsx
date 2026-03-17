@@ -398,10 +398,16 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     mutationFn: async (updatedLocation: Partial<Location> & { id: string }) => {
       return apiRequest('PUT', `/api/admin/locations/${updatedLocation.id}`, updatedLocation);
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
+    },
   });
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest('DELETE', `/api/admin/locations/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
     },
   });
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -777,7 +783,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
               { ...data, id: selectedLocation.id },
               {
                 onSuccess: () => {
+                  // Invalidate all location queries to force refetch
                   queryClient.invalidateQueries({ queryKey: ["/api/locations"], exact: false });
+                  // Also manually update the cache for the current floor with refetch
+                  queryClient.refetchQueries({ queryKey: ["/api/locations", currentFloor] });
                   if (onSuccess) onSuccess();
                 },
                 onError: () => {

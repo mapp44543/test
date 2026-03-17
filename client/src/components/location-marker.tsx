@@ -347,7 +347,7 @@ function LocationMarkerComponent({
       );
       return apiRequest("PUT", `/api/admin/locations/${updatedLocation.id}`, clean);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/locations"], exact: false }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/locations"] }),
     onError: (error: any) => {
       const description =
         error?.message ||
