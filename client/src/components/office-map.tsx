@@ -41,13 +41,19 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [scale, setScale] = useState(0.85);
   const [isPanning, setIsPanning] = useState(false);
+  // ОПТИМИЗАЦИЯ: panPosition теперь используется только для инициализации контейнера
+  // Для быстрого пананирования используем refs и DOM манипуляции напрямую
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  // Viewport-specific pan position (debounced для виртуализации маркеров)
+  const [viewportPanPosition, setViewportPanPosition] = useState({ x: 0, y: 0 });
   const [startPanPos, setStartPanPos] = useState({ x: 0, y: 0 });
   const [isMarkerDragging, setIsMarkerDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapScalableRef = useRef<HTMLDivElement>(null);  // Ref для прямого обновления трансформа
   const rafIdRef = useRef<number | null>(null);
   const scaleRef = useRef<number>(0.85);
   const panPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const viewportUpdateTimerRef = useRef<number | null>(null);  // Для debouncing viewport обновлений
   const isInitializedRef = useRef<boolean>(false);
   // Wheel batching refs (для накопления событий между RAF кадрами)
   const wheelDeltaRef = useRef<number>(0);
@@ -78,27 +84,55 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     });
     toast({ title: 'Перемещение отменено', description: loc.name });
   };
+
+  /**
+   * ОПТИМИЗАЦИЯ: Обновляем трансформацию карты напрямую в DOM (без re-render)
+   * Это позволяет достичь 60 FPS пананирования без перерисовок
+   */
+  const updateMapTransform = useCallback(() => {
+    if (mapScalableRef.current) {
+      const { x, y } = panPositionRef.current;
+      mapScalableRef.current.style.transform = 
+        `translate3d(${x}px, ${y}px, 0) scale(${scaleRef.current})`;
+    }
+  }, []);
+
+  /**
+   * Debounce обновления viewport позиции для виртуализации маркеров
+   * Обновляется медленнее (~20 раз/сек), чем визуальная трансформация (60 раз/сек)
+   */
+  const scheduleViewportUpdate = useCallback(() => {
+    if (viewportUpdateTimerRef.current !== null) {
+      clearTimeout(viewportUpdateTimerRef.current);
+    }
+    viewportUpdateTimerRef.current = window.setTimeout(() => {
+      setViewportPanPosition({ ...panPositionRef.current });
+      viewportUpdateTimerRef.current = null;
+    }, 50);  // Обновляем viewport раз в 50ms (~20 раз/сек)
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     // Начинаем панорамирование только левой кнопкой и если клик выполнен над картой (или её контейнером),
     // но не над интерактивными элементами UI (кнопки, инпуты и т.д.).
-  if (e.button !== 0) return;
+    if (e.button !== 0) return;
     const target = e.target as HTMLElement | null;
-  // Разрешаем панорамирование, если клик произошёл внутри .map-scalable или прямо по контейнеру .map-container
-  const isInsideMap = !!target?.closest('.map-scalable') || !!target?.closest('.map-container');
-  // Не начинаем панорамирование, если пользователь кликнул по маркеру (чтобы не перехватывать drag маркера)
-  if (target?.closest && target.closest('.location-marker')) return;
-  // Если кликнули по элементу UI (кнопки/инпуты) — у них обычно есть интерактивность; пропустим начало панорамирования
-  const interactiveTags = ['button', 'input', 'textarea', 'select', 'a', 'label'];
-  if (!isInsideMap || interactiveTags.includes(target?.tagName?.toLowerCase() || '')) return;
-  // Если в данный момент выполняется drag маркера — не начинаем панорамирование
-  if (isMarkerDragging) return;
+    // Разрешаем панорамирование, если клик произошёл внутри .map-scalable или прямо по контейнеру .map-container
+    const isInsideMap = !!target?.closest('.map-scalable') || !!target?.closest('.map-container');
+    // Не начинаем панорамирование, если пользователь кликнул по маркеру (чтобы не перехватывать drag маркера)
+    if (target?.closest && target.closest('.location-marker')) return;
+    // Если кликнули по элементу UI (кнопки/инпуты) — у них обычно есть интерактивность; пропустим начало панорамирования
+    const interactiveTags = ['button', 'input', 'textarea', 'select', 'a', 'label'];
+    if (!isInsideMap || interactiveTags.includes(target?.tagName?.toLowerCase() || '')) return;
+    // Если в данный момент выполняется drag маркера — не начинаем панорамирование
+    if (isMarkerDragging) return;
 
     setIsPanning(true);
     // Prevent native text selection on mousedown + drag
     try { e.preventDefault(); } catch {}
+    // ОПТИМИЗАЦИЯ: Используем panPositionRef вместо state
     setStartPanPos({
-      x: e.clientX - panPosition.x,
-      y: e.clientY - panPosition.y
+      x: e.clientX - panPositionRef.current.x,
+      y: e.clientY - panPositionRef.current.y
     });
     // Prevent text selection while panning the map
     try {
@@ -116,15 +150,18 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     // Обновляем refs сразу для более точного взаимодействия
     panPositionRef.current = { x: newX, y: newY };
     
-    // Используем requestAnimationFrame для синхронизации с refresh rate браузера
-    if (rafIdRef.current !== null) {
-      cancelAnimationFrame(rafIdRef.current);
+    // ОПТИМИЗАЦИЯ: Используем requestAnimationFrame для синхронизации с refresh rate браузера
+    // Обновляем трансформацию карты напрямую в DOM (без re-render)
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        updateMapTransform();
+        rafIdRef.current = null;
+      });
     }
-    rafIdRef.current = requestAnimationFrame(() => {
-      setPanPosition({ x: newX, y: newY });
-      rafIdRef.current = null;
-    });
-  }, [isPanning, startPanPos]);
+    
+    // Debounce обновления viewport для маркеров (медленнее, 50ms)
+    scheduleViewportUpdate();
+  }, [isPanning, startPanPos, updateMapTransform, scheduleViewportUpdate]);
 
   const handleMouseUp = useCallback(() => {
     if (rafIdRef.current !== null) {
@@ -158,14 +195,19 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     };
   }, [handleMouseMove, handleMouseUp]);
 
-  // Синхронизируем scaleRef и panPositionRef с состояниями
+  // Синхронизируем scaleRef с состоянием масштаба
   useEffect(() => {
     scaleRef.current = scale;
   }, [scale]);
 
+  /**
+   * ОПТИМИЗАЦИЯ: Синхронизируем panPosition state изменения с DOM трансформом
+   * Это работает для всех случаев обновления panPosition (centerOnLocation, инициализация, wheel, и т.д.)
+   */
   useEffect(() => {
     panPositionRef.current = panPosition;
-  }, [panPosition]);
+    updateMapTransform();
+  }, [panPosition, updateMapTransform]);
 
   // Слушаем глобальные события перетаскивания маркера, чтобы при drag маркера не инициировать панораму
   useEffect(() => {
@@ -597,10 +639,12 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       )}
   <div className="w-full flex justify-center items-center flex-1 map-container" ref={containerRef} onMouseDown={handleMouseDown}>
         <div
+          ref={mapScalableRef}
           className={`map-scalable ${isFloorTransitioning ? 'floor-transitioning' : 'floor-loaded'}`}
           style={{
             display: 'inline-block',
-            transform: `translate3d(${panPosition.x}px, ${panPosition.y}px, 0) scale(${scale})`,
+            // ОПТИМИЗАЦИЯ: transform управляется НАПРЯМУЮ через ref в updateMapTransform()
+            // Инициальный стиль - будет перезаписан через DOM манипуляцию после первого обновления
             transition: isInteracting || isZooming ? 'none' : 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
             cursor: isPanning ? 'grabbing' : 'grab',
             willChange: isInteracting || isZooming ? 'transform' : 'auto'
@@ -614,7 +658,13 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
                 type="image/svg+xml"
                 draggable="false"
                 className="rounded-lg shadow-inner bg-white"
-                style={{ maxWidth: '100%', maxHeight: '100%', display: 'block' }}
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '100%', 
+                  display: 'block',
+                  imageRendering: 'crisp-edges',
+                  shapeRendering: 'crispEdges'
+                }}
                 onLoad={e => {
                   setIsImageLoaded(false);
                   const target = e.currentTarget as HTMLObjectElement;
@@ -722,7 +772,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
                       foundLocationId={foundLocationId}
                       imgSize={imgSize}
                       scale={scale}
-                      panPosition={panPosition}
+                      panPosition={viewportPanPosition}
                       onMarkerClick={handleLocationClick}
                       isImageLoaded={isImageLoaded}
                       shouldUseCanvas={true}
@@ -740,7 +790,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
                       imgRef={imgRef}
                       onMarkerMove={handleMarkerMove}
                       scale={scale}
-                      panPosition={panPosition}
+                      panPosition={viewportPanPosition}
                       isImageLoaded={isImageLoaded}
                     />
                   );
@@ -757,14 +807,14 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
                       imgRef={imgRef}
                       onMarkerMove={handleMarkerMove}
                       scale={scale}
-                      panPosition={panPosition}
+                      panPosition={viewportPanPosition}
                       isImageLoaded={isImageLoaded}
                     />
                   );
                 }
               })()}
             </div>
-            ), [locations, isAdminMode, imgSize, highlightedLocationIdsLocal, foundLocationId, isImageLoaded, scale, panPosition])}
+            ), [locations, isAdminMode, imgSize, highlightedLocationIdsLocal, foundLocationId, isImageLoaded, scale, viewportPanPosition])}
         </div>
       </div>
 

@@ -64,6 +64,7 @@
   /* Улучшаем качество при масштабировании - сохраняем чёткость */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  image-rendering: pixelated;
   /* GPU-ускорение */
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
@@ -75,6 +76,13 @@
   -webkit-user-drag: none; /* Отключает перетаскивание в WebKit */
   -khtml-user-drag: none; /* Отключает перетаскивание в KHTML */
   -o-user-drag: none; /* Отключает перетаскивание в Opera */
+  /* SVG quality improvements */
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   /* GPU-ускорение для SVG */
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
@@ -132,6 +140,28 @@
 }
 
 /* removed marker-pulse keyframes to avoid background animation */
+
+/* SVG rendering quality improvements - crisp lines and text */
+.map-scalable object svg,
+svg[data-testid="office-map-svg"] {
+  shape-rendering: crispEdges;
+  text-rendering: geometricPrecision;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.map-scalable object svg text {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+.map-scalable object svg line,
+.map-scalable object svg rect,
+.map-scalable object svg circle,
+.map-scalable object svg path,
+.map-scalable object svg polygon {
+  shape-rendering: crispEdges;
+}
 
 /* Public links container: render links in a column */
 .public-links {

@@ -7,11 +7,21 @@
 /* Enable smooth scrolling for better UX */
 html {
   scroll-behavior: smooth;
+  /* Improve SVG rendering globally */
+  shape-rendering: geometricPrecision;
 }
 
 /* Optimize performance with will-change hints and GPU acceleration */
 body {
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* SVG rendering optimization - crisp edges and text */
+svg {
+  shape-rendering: crispEdges;
+  text-rendering: geometricPrecision;
+  font-family: inherit;
 }
 
 :root {
