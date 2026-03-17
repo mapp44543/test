@@ -1,15 +1,17 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
 import { useCustomIcons } from '@/hooks/use-custom-icon';
 
 /**
  * IconsCacheContext
  * 
- * Глобальный кэш для иконок всех типов локаций
- * Загружается один раз при монтировании приложения
- * Предотвращает 600+ запросов при 100 маркерах
+ * Глобальный кэш для иконок с ленивой загрузкой
  * 
- * До оптимизации: 100 маркеров × 6 типов иконок = 600 запросов
- * После оптимизации: 1 раз × 6 типов = 6 запросов
+ * Оптимизация: Двухэтапная загрузка
+ * - Этап 1 (критичные): common-area, meeting-room (загружаются сразу)
+ * - Этап 2 (остальные): equipment, camera, ac, workstations (загружаются в фоне)
+ * 
+ * До оптимизации: 8 useQuery параллельно при старте
+ * После оптимизации: 2 useQuery сразу + 6 в фоне (не блокируют UI)
  */
 
 interface IconsCacheContextType {
@@ -22,32 +24,84 @@ interface IconsCacheContextType {
   workstationNonactivIcons: Array<{ url: string; name: string }>;
   workstationRepairIcons: Array<{ url: string; name: string }>;
   isLoading: boolean;
+  isPrimaryLoading: boolean; // Критичные иконки загружаются
+  isSecondaryLoading: boolean; // Остальные иконки загружаются в фоне
 }
 
 const IconsCacheContext = createContext<IconsCacheContextType | undefined>(undefined);
 
 /**
  * IconsCacheProvider
- * Оборачивает приложение и загружает все иконки один раз
+ * 
+ * Двухэтапная загрузка иконок для минимизации startup блокировки:
+ * - Этап 1: Критичные типы локаций (common-area, meeting-room)
+ * - Этап 2: Остальные типы (в фоне, non-blocking)
  */
 export function IconsCacheProvider({ children }: { children: React.ReactNode }) {
-  // Загружаем все иконки один раз - всё происходит параллельно
+  // Этап 1: Загружаем критичные иконки сразу (обычно встречаются чаще)
   const { data: commonAreaIcons = [], isLoading: isLoadingCommonArea } = useCustomIcons("common area");
   const { data: meetingRoomIcons = [], isLoading: isLoadingMeetingRoom } = useCustomIcons("negotiation room");
-  const { data: equipmentIcons = [], isLoading: isLoadingEquipment } = useCustomIcons("print");
-  const { data: cameraIcons = [], isLoading: isLoadingCamera } = useCustomIcons("Камера");
-  const { data: acIcons = [], isLoading: isLoadingAc } = useCustomIcons("ac");
-  const { data: workstationActivIcons = [], isLoading: isLoadingWorkstationActiv } = useCustomIcons("workstation", {
-    status: "occupied",
-  });
-  const { data: workstationNonactivIcons = [], isLoading: isLoadingWorkstationNonactiv } = useCustomIcons("workstation", {
-    status: "available",
-  });
-  const { data: workstationRepairIcons = [], isLoading: isLoadingWorkstationRepair } = useCustomIcons("workstation", {
-    status: "maintenance",
-  });
 
-  const isLoading = isLoadingCommonArea || isLoadingMeetingRoom || isLoadingEquipment || isLoadingCamera || isLoadingAc || isLoadingWorkstationActiv || isLoadingWorkstationNonactiv || isLoadingWorkstationRepair;
+  // Этап 2: Загружаем остальные иконки в фоне с задержкой (requestIdleCallback)
+  const [shouldLoadSecondaryIcons, setShouldLoadSecondaryIcons] = useState(false);
+
+  // Запланируем загрузку вторичных иконок когда браузер свободен
+  useEffect(() => {
+    // Используем requestIdleCallback для фоновой загрузки
+    const scheduleSecondaryLoad = () => {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(
+          () => setShouldLoadSecondaryIcons(true),
+          { timeout: 5000 } // Timeout 5s - загрузить в любом случае через 5 сек
+        );
+      } else {
+        // Fallback для старых браузеров: загрузить через 500ms
+        setTimeout(() => setShouldLoadSecondaryIcons(true), 500);
+      }
+    };
+
+    scheduleSecondaryLoad();
+  }, []);
+
+  // Вторичные иконки загружаются только после того как браузер idle или истекло время
+  const { data: equipmentIcons = [], isLoading: isLoadingEquipment } = useCustomIcons(
+    "print",
+    { enabled: shouldLoadSecondaryIcons }
+  );
+  const { data: cameraIcons = [], isLoading: isLoadingCamera } = useCustomIcons(
+    "Камера",
+    { enabled: shouldLoadSecondaryIcons }
+  );
+  const { data: acIcons = [], isLoading: isLoadingAc } = useCustomIcons(
+    "ac",
+    { enabled: shouldLoadSecondaryIcons }
+  );
+  const { data: workstationActivIcons = [], isLoading: isLoadingWorkstationActiv } = useCustomIcons(
+    "workstation",
+    {
+      status: "occupied",
+      enabled: shouldLoadSecondaryIcons,
+    }
+  );
+  const { data: workstationNonactivIcons = [], isLoading: isLoadingWorkstationNonactiv } = useCustomIcons(
+    "workstation",
+    {
+      status: "available",
+      enabled: shouldLoadSecondaryIcons,
+    }
+  );
+  const { data: workstationRepairIcons = [], isLoading: isLoadingWorkstationRepair } = useCustomIcons(
+    "workstation",
+    {
+      status: "maintenance",
+      enabled: shouldLoadSecondaryIcons,
+    }
+  );
+
+  // Статус загрузки по этапам
+  const isPrimaryLoading = isLoadingCommonArea || isLoadingMeetingRoom;
+  const isSecondaryLoading = isLoadingEquipment || isLoadingCamera || isLoadingAc || isLoadingWorkstationActiv || isLoadingWorkstationNonactiv || isLoadingWorkstationRepair;
+  const isLoading = isPrimaryLoading || isSecondaryLoading;
 
   const value = useMemo<IconsCacheContextType>(
     () => ({
@@ -60,6 +114,8 @@ export function IconsCacheProvider({ children }: { children: React.ReactNode }) 
       workstationNonactivIcons,
       workstationRepairIcons,
       isLoading,
+      isPrimaryLoading,
+      isSecondaryLoading,
     }),
     [
       commonAreaIcons,
@@ -71,6 +127,8 @@ export function IconsCacheProvider({ children }: { children: React.ReactNode }) 
       workstationNonactivIcons,
       workstationRepairIcons,
       isLoading,
+      isPrimaryLoading,
+      isSecondaryLoading,
     ]
   );
 

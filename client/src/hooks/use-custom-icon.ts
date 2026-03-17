@@ -31,7 +31,8 @@ export function useCustomIcons(category: string, options?: { enabled?: boolean; 
       }
     },
     enabled: options?.enabled ?? true,
-    staleTime: 0, // Don't cache - always fetch fresh data
-    gcTime: 0, // Don't keep in garbage collection
+    // Keep icons in cache forever - they don't change during session
+    staleTime: Infinity,
+    gcTime: Infinity,
   });
 }

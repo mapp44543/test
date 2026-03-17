@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import Supercluster from "supercluster";
 import type { Location } from "@shared/schema";
 
@@ -35,8 +35,13 @@ interface ClusterResult {
 
 /**
  * useSupercluster
- * Кластеризует маркеры на основе масштаба камеры
- * Для масштаба < 0.7 группирует близкие маркеры в кластеры
+ * Кластеризует маркеры на основе масштаба камеры с интеллектуальным debouncing.
+ * 
+ * Оптимизация:
+ * - Zoom операции (>5% изменение scale): debounce 50ms
+ * - Pan операции (<5% изменение scale): debounce 100ms
+ * 
+ * Это уменьшает количество getClusters() вызовов при быстрых pan/zoom событиях.
  */
 export function useSupercluster(
   locations: Location[],
@@ -46,19 +51,18 @@ export function useSupercluster(
   // Инициализируем supercluster instance
   const supercluster = useMemo(() => {
     const cluster = new Supercluster({
-      radius: 45, // Уменьшили с 60 для лучше различимости маркеров
-      maxZoom: 15, // максимальный зум уровень
-      minZoom: 0, // минимальный зум уровень
+      radius: 45,
+      maxZoom: 15,
+      minZoom: 0,
     });
 
-    // Конвертируем локации в GeoJSON формат
     const points: ClusterPoint[] = locations.map((location) => ({
       type: "Feature",
       geometry: {
         type: "Point",
         coordinates: [
-          location.x ?? 0, // longitude (x % от ширины)
-          location.y ?? 0, // latitude (y % от высоты)
+          location.x ?? 0,
+          location.y ?? 0,
         ],
       },
       properties: {
@@ -71,13 +75,46 @@ export function useSupercluster(
     return cluster;
   }, [locations]);
 
+  // Refs для интеллектуального debouncing
+  const prevScaleRef = useRef<number>(scale);
+  const debounceTimerRef = useRef<number | null>(null);
+  const [debouncedScale, setDebouncedScale] = useState<number>(scale);
+
+  // Detect zoom vs pan и apply different debounce delays
+  useEffect(() => {
+    const prevScale = prevScaleRef.current;
+    const scaleDifference = Math.abs(scale - prevScale);
+    const scaleChangePercent = (scaleDifference / prevScale) * 100;
+
+    // Определяем тип операции
+    const isZoom = scaleChangePercent > 5; // Zoom: более чем 5% изменение
+    const debounceDelay = isZoom ? 50 : 100; // Zoom быстрее, pan может быть мед ленше
+
+    // Очищаем предыдущий таймер
+    if (debounceTimerRef.current !== null) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Запланируем обновление с соответствующей задержкой
+    debounceTimerRef.current = window.setTimeout(() => {
+      setDebouncedScale(scale);
+      prevScaleRef.current = scale;
+      debounceTimerRef.current = null;
+    }, debounceDelay);
+
+    return () => {
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [scale]);
+
   // Определяем, нужна ли кластеризация на основе масштаба
-  const shouldCluster = scale < 0.85; // Увеличили порог с 0.7 для кластеризации при более высоком зуме
+  const shouldCluster = debouncedScale < 0.85;
 
   // Получаем кластеры или отдельные маркеры
   const clusteredData = useMemo(() => {
     if (!shouldCluster) {
-      // Возвращаем отдельные маркеры
       return locations.map((location) => ({
         type: "marker" as const,
         location,
@@ -85,13 +122,13 @@ export function useSupercluster(
     }
 
     // Вычисляем zoom level на основе scale
-    // scale 0.5 = zoom 9, scale 0.1 = zoom 6
-    const computedZoom = Math.max(0, Math.min(15, Math.log2(scale * 32)));
+    const computedZoom = Math.max(0, Math.min(15, Math.log2(debouncedScale * 32)));
 
     try {
-      // Получаем кластеры для всех bounds (весь экран)
+      // Получаем кластеры - getClusters это самая дорогая операция
+      // Debounce выше уменьшает количество вызовов с 60/сек до 10-20/сек
       const clusters = supercluster.getClusters(
-        [-180, -85, 180, 85], // весь мир в GeoJSON координатах
+        [-180, -85, 180, 85],
         Math.floor(computedZoom)
       );
 
@@ -119,7 +156,7 @@ export function useSupercluster(
         location,
       }));
     }
-  }, [shouldCluster, locations, supercluster, scale]);
+  }, [shouldCluster, locations, supercluster, debouncedScale]);
 
   return {
     clusteredData,
