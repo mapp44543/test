@@ -22,10 +22,10 @@ rm -f "public/icons/user/Рабочее место в работах с охра
 
 ### 3. **Обновить базу данных** (выберите один из вариантов)
 
-#### Вариант A: TypeScript скрипт (PostgreSQL) - **РЕКОМЕНДУЕТСЯ**
+#### Вариант A: Node.js скрипт (PostgreSQL) - **РЕКОМЕНДУЕТСЯ**
 ```bash
 # Убедитесь, что DATABASE_URL задана в .env
-npx tsx migrate-icons-postgres.ts
+node migrate-icons.js
 ```
 
 #### Вариант B: SQL напрямую (если PostgreSQL)
@@ -102,10 +102,10 @@ docker-compose logs -f web
 
 ## 📝 Файлы миграции
 
-- `migrate-icons-postgres.ts` - основной скрипт для PostgreSQL ✅ ИСПОЛЬЗУЙТЕ ЭТОТ
-- `migrate-icons-sqlite.ts` - альтернатива для SQLite
-- `rename-icons.sql` - SQL скрипт (для PostgreSQL)
-- `rename-icons.sql` - SQL скрипт для SQLite
+- `migrate-icons.js` - основной скрипт для PostgreSQL ✅ ИСПОЛЬЗУЙТЕ ЭТОТ
+- `migrate-icons-to-english.ts` - альтернатива для SQLite (TypeScript)
+- `rename-icons.sql` - SQL скрипт для PostgreSQL
+- `rename-icons-sqlite.sql` - SQL скрипт для SQLite
 
 ## 🆘 Если возникнут проблемы
 
