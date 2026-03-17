@@ -252,42 +252,42 @@ function LocationMarkerComponent({
     
     if (location.type === "common-area") {
       if (preferredIcon) {
-        return `/icons/common%20area/${preferredIcon}`;
+        return `/icons/${encodeURIComponent('common area')}/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.commonAreaIcons.length > 0) {
         return iconsCache.commonAreaIcons[0].url;
       }
     } else if (location.type === "meeting-room") {
       if (preferredIcon) {
-        return `/icons/negotiation%20room/${preferredIcon}`;
+        return `/icons/${encodeURIComponent('negotiation room')}/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.meetingRoomIcons.length > 0) {
         return iconsCache.meetingRoomIcons[0].url;
       }
     } else if (location.type === "equipment") {
       if (preferredIcon) {
-        return `/icons/print/${preferredIcon}`;
+        return `/icons/${encodeURIComponent('print')}/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.equipmentIcons.length > 0) {
         return iconsCache.equipmentIcons[0].url;
       }
     } else if (location.type === "camera") {
       if (preferredIcon) {
-        return `/icons/Камера/${preferredIcon}`;
+        return `/icons/${encodeURIComponent('Камера')}/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.cameraIcons.length > 0) {
         return iconsCache.cameraIcons[0].url;
       }
     } else if (location.type === "ac") {
       if (preferredIcon) {
-        return `/icons/ac/${preferredIcon}`;
+        return `/icons/${encodeURIComponent('ac')}/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.acIcons.length > 0) {
         return iconsCache.acIcons[0].url;
       }
     } else if (location.type === "workstation") {
       if (preferredIcon) {
-        return `/icons/user/${preferredIcon}`;
+        return `/icons/${encodeURIComponent('user')}/${encodeURIComponent(preferredIcon)}`;
       }
       // Выбираем иконку в зависимости от статуса
       const iconsByStatus = {

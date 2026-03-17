@@ -1009,7 +1009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         icons: svgFiles.map(name => ({
           name,
-          url: `/icons/${category}/${name}`
+          url: `/icons/${encodeURIComponent(category)}/${encodeURIComponent(name)}`
         }))
       });
     } catch (error) {
