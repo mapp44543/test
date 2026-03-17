@@ -388,7 +388,7 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
   const createLocationMutation = useMutation({
     mutationFn: async (location: InsertLocation) => apiRequest("POST", "/api/admin/locations", location),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/locations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/locations"], exact: false });
       toast({ title: "Success", description: "Location created successfully" });
     setIsAddModalOpen(false);
     setNewLocation({ name: "", type: "meeting-room", status: "available", floor: currentFloor, equipment: "", x: 400, y: 300, width: 80, height: 60, customFields: {} });
@@ -440,7 +440,7 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
   const updateLocationMutation = useMutation({
     mutationFn: async (payload: Partial<Location> & { id: string }) => apiRequest('PUT', `/api/admin/locations/${payload.id}`, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/locations'], exact: false });
       toast({ title: 'Успех', description: 'Локация обновлена' });
     },
     onError: (err: any) => toast({ title: 'Ошибка', description: err?.message || 'Не удалось обновить локацию', variant: 'destructive' }),
@@ -449,7 +449,7 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: string) => apiRequest('DELETE', `/api/admin/locations/${id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/locations'], exact: false });
       toast({ title: 'Успех', description: 'Локация удалена' });
     },
     onError: (err: any) => toast({ title: 'Ошибка', description: err?.message || 'Не удалось удалить локацию', variant: 'destructive' }),
@@ -573,14 +573,14 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
       try {
         const r2 = await apiRequest('POST', `/api/admin/locations/${location.id}/avatar-from-ad?login=${encodeURIComponent(adLogin)}`, {} as any);
         if (r2.status === 201) {
-          await queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+          await queryClient.invalidateQueries({ queryKey: ['/api/locations'], exact: false });
           toast({ title: 'Успех', description: 'Аватар сотрудника загружен из AD' });
         } else {
           const j = await r2.json().catch(() => ({}));
-          await queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+          await queryClient.invalidateQueries({ queryKey: ['/api/locations'], exact: false });
         }
       } catch (e) {
-        await queryClient.invalidateQueries({ queryKey: ['/api/locations'] });
+        await queryClient.invalidateQueries({ queryKey: ['/api/locations'], exact: false });
       }
       toast({ title: 'Успех', description: 'Рабочее место добавлено' });
       setIsAddModalOpen(false);
@@ -1063,7 +1063,7 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
               if (!editingLocation) return onError?.();
               updateLocationMutation.mutate({ ...data, id: editingLocation.id }, {
                 onSuccess: () => { 
-                  queryClient.invalidateQueries({ queryKey: ['/api/locations'] }); 
+                  queryClient.invalidateQueries({ queryKey: ['/api/locations'], exact: false }); 
                   onSuccess?.(); 
                 },
                 onError: (err: any) => { onError?.(); }
@@ -1075,7 +1075,7 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
               deleteLocationMutation.mutate(editingLocation.id, {
                 onSuccess: () => { 
                   setEditingLocationId(null);
-                  queryClient.invalidateQueries({ queryKey: ['/api/locations'] }); 
+                  queryClient.invalidateQueries({ queryKey: ['/api/locations'], exact: false }); 
                   onSuccess?.(); 
                 },
                 onError: (err: any) => { onError?.(); }

@@ -1404,12 +1404,16 @@ async function registerRoutes(app2) {
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:", "https:"],
         objectSrc: ["'self'"],
-        connectSrc: ["'self'", "wss:", "ws:", "https://fonts.gstatic.com"]
+        connectSrc: ["'self'", "wss:", "ws:", "https://fonts.gstatic.com"],
+        frameAncestors: ["'self'"]
+        // Prevents clickjacking; makes X-Frame-Options redundant
       }
     },
     hsts: { maxAge: 31536e3, includeSubDomains: true },
     noSniff: true,
-    referrerPolicy: { policy: "strict-origin-when-cross-origin" }
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    frameguard: false
+    // Disable X-Frame-Options to avoid conflict with CSP frame-ancestors
   }));
   const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5000";
   if (process.env.NODE_ENV === "production" && !process.env.CORS_ORIGIN) {

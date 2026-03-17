@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { Quadtree, type QuadtreeItem } from '@/utils/quadtree';
 import { logHitDetectionMetric } from '@/utils/quadtree-profiler';
 import { getGlobalColorsCache } from '@/utils/marker-colors-cache';
+import { useIconsCache } from '@/context/icons-cache';
 import type { Location } from '@shared/schema';
 
 interface CanvasInteractiveMarkerLayerProps {
@@ -59,6 +60,7 @@ export default function CanvasInteractiveMarkerLayer({
   const markerBoundsRef = useRef<Map<string, MarkerBound>>(new Map());
   const quadtreeRef = useRef<Quadtree | null>(null);
   const colorsCacheRef = useRef(getGlobalColorsCache());
+  const iconsCache = useIconsCache();
 
   // Инициализируем canvas
   useEffect(() => {
@@ -99,6 +101,70 @@ export default function CanvasInteractiveMarkerLayer({
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Функция для получения иконки локации
+  const getCustomIconUrl = useCallback((location: Location): string | undefined => {
+    const cf = location.customFields && typeof location.customFields === 'object'
+      ? (location.customFields as Record<string, any>)
+      : {};
+    
+    const preferredIcon = cf.customIcon;
+    const status = location.status || 'available';
+    
+    if (location.type === 'common-area') {
+      if (iconsCache.isLoading) return undefined;
+      if (preferredIcon) return `/icons/common%20area/${preferredIcon}`;
+      if (iconsCache.commonAreaIcons.length > 0) return iconsCache.commonAreaIcons[0].url;
+    } else if (location.type === 'meeting-room') {
+      if (iconsCache.isLoading) return undefined;
+      if (preferredIcon) return `/icons/negotiation%20room/${preferredIcon}`;
+      if (iconsCache.meetingRoomIcons.length > 0) return iconsCache.meetingRoomIcons[0].url;
+    } else if (location.type === 'equipment') {
+      if (iconsCache.isLoading) return undefined;
+      if (preferredIcon) return `/icons/print/${preferredIcon}`;
+      if (iconsCache.equipmentIcons.length > 0) return iconsCache.equipmentIcons[0].url;
+    } else if (location.type === 'camera') {
+      if (iconsCache.isLoading) return undefined;
+      if (preferredIcon) return `/icons/Камера/${preferredIcon}`;
+      if (iconsCache.cameraIcons.length > 0) return iconsCache.cameraIcons[0].url;
+    } else if (location.type === 'ac') {
+      if (iconsCache.isLoading) return undefined;
+      if (preferredIcon) return `/icons/ac/${preferredIcon}`;
+      if (iconsCache.acIcons.length > 0) return iconsCache.acIcons[0].url;
+    } else if (location.type === 'workstation') {
+      if (iconsCache.isLoading) return undefined;
+      if (preferredIcon) return `/icons/user/${preferredIcon}`;
+      const iconsByStatus = {
+        occupied: iconsCache.workstationActivIcons,
+        available: iconsCache.workstationNonactivIcons,
+        maintenance: iconsCache.workstationRepairIcons,
+      };
+      const icons = iconsByStatus[status as keyof typeof iconsByStatus] || iconsCache.workstationNonactivIcons;
+      if (icons.length > 0) return icons[0].url;
+    }
+    
+    return undefined;
+  }, [iconsCache]);
+
+  // Функция для получения размера иконки в зависимости от типа
+  const getIconSize = useCallback((type: string): { width: number; height: number } => {
+    switch (type) {
+      case 'common-area':
+        return { width: 30, height: 30 };
+      case 'meeting-room':
+        return { width: 45, height: 45 };
+      case 'camera':
+        return { width: 28, height: 28 };
+      case 'ac':
+        return { width: 34, height: 34 };
+      case 'equipment':
+        return { width: 34, height: 34 };
+      case 'workstation':
+        return { width: 28, height: 28 };
+      default:
+        return { width: 20, height: 20 };
+    }
   }, []);
 
   // Функция для получения цвета статуса маркера (с мемоизацией через кэш)
@@ -243,7 +309,7 @@ export default function CanvasInteractiveMarkerLayer({
     });
 
     ctx.restore();
-  }, [ctx, locations, imgSize, scale, panPosition, isImageLoaded, shouldUseCanvas, highlightedLocationIds, foundLocationId, hoveredMarkerId]);
+  }, [ctx, locations, imgSize, scale, panPosition, isImageLoaded, shouldUseCanvas, highlightedLocationIds, foundLocationId, hoveredMarkerId, getStatusColor]);
 
   // Обработка кликов с оптимизированным hit detection через Quadtree
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -364,6 +430,50 @@ export default function CanvasInteractiveMarkerLayer({
         }}
         data-testid="canvas-interactive"
       />
+      
+      {/* DOM слой с иконками для всех типов локаций */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${scale})`,
+          transformOrigin: '0 0',
+        }}
+      >
+        {locations.map((location) => {
+          const iconUrl = getCustomIconUrl(location);
+          if (!iconUrl) return null;
+
+          const iconSize = getIconSize(location.type);
+          const x = (imgSize.width * (location.x ?? 0)) / 100;
+          const y = (imgSize.height * (location.y ?? 0)) / 100;
+
+          const isHighlighted =
+            highlightedLocationIds.includes(location.id) ||
+            foundLocationId === location.id;
+
+          return (
+            <img
+              key={location.id}
+              src={iconUrl}
+              alt={location.name}
+              style={{
+                position: 'absolute',
+                left: `${x}px`,
+                top: `${y}px`,
+                transform: `translate(-50%, -50%)`,
+                width: `${iconSize.width}px`,
+                height: `${iconSize.height}px`,
+                pointerEvents: 'none',
+                opacity: isHighlighted ? 1 : 0.9,
+                filter: isHighlighted ? 'drop-shadow(0 0 8px rgba(220, 38, 38, 0.6))' : 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))',
+                transition: 'opacity 200ms, filter 200ms',
+              }}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -19,6 +19,8 @@
     "/^sudo apt-get update && sudo apt-get install -y curl 2>&1 \\| tail -5$/": {
       "approve": true,
       "matchCommandLine": true
-    }
+    },
+    "git add": true,
+    "git commit": true
   }
 }

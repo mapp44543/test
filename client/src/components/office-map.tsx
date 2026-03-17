@@ -398,16 +398,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     mutationFn: async (updatedLocation: Partial<Location> & { id: string }) => {
       return apiRequest('PUT', `/api/admin/locations/${updatedLocation.id}`, updatedLocation);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
-    },
   });
   const deleteLocationMutation = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest('DELETE', `/api/admin/locations/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
     },
   });
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -783,7 +777,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
               { ...data, id: selectedLocation.id },
               {
                 onSuccess: () => {
-                  queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/locations"], exact: false });
                   if (onSuccess) onSuccess();
                 },
                 onError: () => {
@@ -795,7 +789,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
           deleteLocation={(onSuccess, onError) => {
             deleteLocationMutation.mutate(selectedLocation.id, {
               onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: ["/api/locations", currentFloor] });
+                queryClient.invalidateQueries({ queryKey: ["/api/locations"], exact: false });
                 if (refetchLocations) refetchLocations();
                 setSelectedLocation(null);
                 if (onSuccess) onSuccess();

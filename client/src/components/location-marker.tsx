@@ -74,8 +74,8 @@ const getLocationIcon = (type: string, customIconUrl?: string, onLoad?: () => vo
   // For socket type, show lucide-react icons
   switch (type) {
     case "socket":
-      // Socket icons are rendered here - need to show placeholder or default
-      return <div className={`${iconSize} bg-white rounded-full`} />;
+      // Socket icons are rendered here - no icon needed, just use marker color
+      return null;
     default:
       return null;
   }
@@ -347,7 +347,7 @@ function LocationMarkerComponent({
       );
       return apiRequest("PUT", `/api/admin/locations/${updatedLocation.id}`, clean);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/locations"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/locations"], exact: false }),
     onError: (error: any) => {
       const description =
         error?.message ||
