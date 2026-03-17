@@ -19,13 +19,14 @@ export function useCustomIcons(category: string, options?: { enabled?: boolean; 
     ? `user/${statusToFolderMap[options.status] || options.status}` 
     : category;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["/api/icons", effectiveCategory],
     queryFn: async () => {
       try {
         const response = await apiRequest("GET", `/api/icons/${encodeURIComponent(effectiveCategory)}`);
         const data = await response.json();
-        return (data?.icons || []) as IconFile[];
+        const icons = (data?.icons || []) as IconFile[];
+        return icons;
       } catch (error) {
         return [];
       }
@@ -35,4 +36,6 @@ export function useCustomIcons(category: string, options?: { enabled?: boolean; 
     staleTime: Infinity,
     gcTime: Infinity,
   });
+
+  return query;
 }

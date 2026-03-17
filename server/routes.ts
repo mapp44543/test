@@ -980,7 +980,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve icons directory
   const iconsDir = path.resolve(__dirname, "..", "public", "icons");
   fs.mkdirSync(iconsDir, { recursive: true });
-  app.use("/icons", express.static(iconsDir));
+  
+  // Custom handler for icons to properly decode URLs with UTF-8 characters
+  // Matches: /icons/category/filename or /icons/category/subcategory/filename
+  // This must come BEFORE static file serving to take precedence
+  app.get("/icons/*", (req, res) => {
+    try {
+      // Get full path after /icons/ - req.url includes the full path with encoding
+      const iconPath = req.url.replace(/^\/icons\//, '');
+      const decodedPath = decodeURIComponent(iconPath);
+      const fullPath = path.resolve(path.join(iconsDir, decodedPath));
+      
+      // Security: ensure the path is within iconsDir
+      if (!fullPath.startsWith(path.resolve(iconsDir))) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Check if file exists and send it
+      if (fs.existsSync(fullPath)) {
+        res.set('Cache-Control', 'public, max-age=3600');
+        return res.sendFile(fullPath);
+      }
+      
+      res.status(404).json({ message: "Icon not found" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to serve icon" });
+    }
+  });
 
   // Get available SVG icons for a category (e.g., /api/icons/Общая%20зона)
   app.get("/api/icons/:category", async (req, res) => {
@@ -1009,7 +1035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         icons: svgFiles.map(name => ({
           name,
-          url: `/icons/${encodeURIComponent(category)}/${encodeURIComponent(name)}`
+          url: `/icons/${category}/${encodeURIComponent(name)}`
         }))
       });
     } catch (error) {

@@ -251,43 +251,60 @@ function LocationMarkerComponent({
     const status = location.status || "available";
     
     if (location.type === "common-area") {
+      // Return undefined while loading - prevents showing fallback icons
+      if (iconsCache.isLoading) {
+        return undefined;
+      }
       if (preferredIcon) {
-        return `/icons/${encodeURIComponent('common area')}/${encodeURIComponent(preferredIcon)}`;
+        return `/icons/common%20area/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.commonAreaIcons.length > 0) {
         return iconsCache.commonAreaIcons[0].url;
       }
     } else if (location.type === "meeting-room") {
+      if (iconsCache.isLoading) {
+        return undefined;
+      }
       if (preferredIcon) {
-        return `/icons/${encodeURIComponent('negotiation room')}/${encodeURIComponent(preferredIcon)}`;
+        return `/icons/negotiation%20room/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.meetingRoomIcons.length > 0) {
         return iconsCache.meetingRoomIcons[0].url;
       }
     } else if (location.type === "equipment") {
+      if (iconsCache.isLoading) {
+        return undefined;
+      }
       if (preferredIcon) {
-        return `/icons/${encodeURIComponent('print')}/${encodeURIComponent(preferredIcon)}`;
+        return `/icons/print/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.equipmentIcons.length > 0) {
         return iconsCache.equipmentIcons[0].url;
       }
     } else if (location.type === "camera") {
+      if (iconsCache.isLoading) {
+        return undefined;
+      }
       if (preferredIcon) {
-        return `/icons/${encodeURIComponent('Камера')}/${encodeURIComponent(preferredIcon)}`;
+        return `/icons/Камера/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.cameraIcons.length > 0) {
         return iconsCache.cameraIcons[0].url;
       }
     } else if (location.type === "ac") {
+      if (iconsCache.isLoading) {
+        return undefined;
+      }
       if (preferredIcon) {
-        return `/icons/${encodeURIComponent('ac')}/${encodeURIComponent(preferredIcon)}`;
+        return `/icons/ac/${encodeURIComponent(preferredIcon)}`;
       }
       if (iconsCache.acIcons.length > 0) {
         return iconsCache.acIcons[0].url;
       }
     } else if (location.type === "workstation") {
+      // Don't block on global isLoading - check if preferred icon exists first
       if (preferredIcon) {
-        return `/icons/${encodeURIComponent('user')}/${encodeURIComponent(preferredIcon)}`;
+        return `/icons/user/${encodeURIComponent(preferredIcon)}`;
       }
       // Выбираем иконку в зависимости от статуса
       const iconsByStatus = {
@@ -296,6 +313,7 @@ function LocationMarkerComponent({
         maintenance: iconsCache.workstationRepairIcons,
       };
       const icons = iconsByStatus[status as keyof typeof iconsByStatus] || iconsCache.workstationNonactivIcons;
+      // Return icon if available, or undefined if still loading (graceful fallback)
       if (icons.length > 0) {
         return icons[0].url;
       }

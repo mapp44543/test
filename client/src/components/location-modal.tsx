@@ -198,7 +198,6 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
     
     // Если запрос уже идет, не запускаем новый
     if (ciscoSyncInProgressRef.current) {
-      console.log('[LocationModal] Cisco sync already in progress, skipping duplicate request');
       return;
     }
     
@@ -361,7 +360,6 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
     } catch (e) {
       // Не показываем ошибку если запрос был отменен
       if (e instanceof Error && e.name === 'AbortError') {
-        console.log('[LocationModal] Cisco sync request was aborted');
         return;
       }
       

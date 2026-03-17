@@ -98,6 +98,8 @@ export function IconsCacheProvider({ children }: { children: React.ReactNode }) 
     }
   );
 
+
+
   // Статус загрузки по этапам
   const isPrimaryLoading = isLoadingCommonArea || isLoadingMeetingRoom;
   const isSecondaryLoading = isLoadingEquipment || isLoadingCamera || isLoadingAc || isLoadingWorkstationActiv || isLoadingWorkstationNonactiv || isLoadingWorkstationRepair;
