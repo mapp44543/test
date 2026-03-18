@@ -136,6 +136,9 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
 
     setIsPanning(true);
     setStartPanPos({ x: e.clientX, y: e.clientY });  // Для синхронизации с состоянием (не используется в handleMouseMove)
+    
+    // Обновляем viewport сразу при начале панорамирования
+    setViewportPanPosition({ ...panPositionRef.current });
 
     // Prevent native text selection on mousedown + drag
     try { e.preventDefault(); } catch {}
@@ -186,9 +189,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       });
     }
     
-    // Debounce обновления viewport для маркеров (медленнее, 50ms)
-    scheduleViewportUpdate();
-  }, [updateMapTransform, scheduleViewportUpdate]);
+    // НЕ вызываем scheduleViewportUpdate() при панорамировании!
+    // Это происходит слишком часто и вызывает бесполезные re-renders
+    // Вместо этого обновляем viewport ОДИН раз при завершении панорамирования
+  }, [updateMapTransform]);
 
   const handleMouseUp = useCallback(() => {
     // КРИТИЧЕСКОЕ: Синхронно обновляем refs!
@@ -198,6 +202,11 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
     }
+    
+    // Обновляем viewport позицию ОДИН раз при завершении панорамирования
+    // (вместо частых обновлений во время движения)
+    setViewportPanPosition({ ...panPositionRef.current });
+    
     setIsPanning(false);
     setIsInteracting(false);
     // Restore text selection
