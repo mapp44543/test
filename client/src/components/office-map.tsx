@@ -174,16 +174,12 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     // Обновляем refs сразу для более точного взаимодействия
     panPositionRef.current = { x: newX, y: newY };
     
-    // ОПТИМИЗАЦИЯ: Используем requestAnimationFrame для синхронизации с refresh rate браузера
-    // Обновляем трансформацию карты напрямую в DOM (без re-render)
-    if (rafIdRef.current === null) {
-      rafIdRef.current = requestAnimationFrame(() => {
-        updateMapTransform();
-        rafIdRef.current = null;
-      });
-    }
+    // 🔑 КРИТИЧНО: Обновляем DOM СИНХРОННО, не ждём RAF!
+    // Это минимизирует input lag (задержку между действием и отображением)
+    // RAF добавлял задержку до 16ms, теперь обновляем сразу
+    updateMapTransform();
     
-    // 🔴 КРИТИЧНО: НЕ обновляем viewport при панорамировании!
+    // 🔴 НЕ обновляем viewport при панорамировании!
     // Вместо этого маркеры "заморозятся" на экране, как в Google Maps
     // И обновятся ТОЛЬКО при mouseUp или при другом действии
     // Это дает нам максимальную производительность (60 FPS без re-renders)
