@@ -159,13 +159,14 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   }, [startPanPos]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    // Профилирование для измерения FPS
-    const profiler = PerformanceProfiler.getInstance();
-    profiler.recordFrame();
-
     // КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ: Используем refs вместо зависимостей
     // Это избегает переписывания callback на каждое событие
     if (!isPanningRef.current) return;
+    
+    // Профилирование для измерения FPS
+    const profiler = PerformanceProfiler.getInstance();
+    profiler.recordMouseMove();
+    profiler.recordFrame();
     
     // Вычисляем дельту мыши с момента начала панорамирования
     const deltaX = e.clientX - startMousePosRef.current.x;
