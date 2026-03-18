@@ -4,6 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { getOptimizedImageUrl } from "@/lib/image-optimization";
+import { PerformanceProfiler } from "@/utils/performance-profiler";
+import PerformanceWidget from "./performance-widget";
 import LocationMarker from "./location-marker";
 import VirtualizedMarkerLayer from "./virtualized-marker-layer";
 import VirtualizedMarkerLayerAdvanced from "./virtualized-marker-layer-advanced";
@@ -90,11 +92,17 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
    * Это позволяет достичь 60 FPS пананирования без перерисовок
    */
   const updateMapTransform = useCallback(() => {
+    const profiler = PerformanceProfiler.getInstance();
+    profiler.rafStart();
+
     if (mapScalableRef.current) {
       const { x, y } = panPositionRef.current;
       mapScalableRef.current.style.transform = 
         `translate3d(${x}px, ${y}px, 0) scale(${scaleRef.current})`;
     }
+
+    profiler.rafEnd();
+    profiler.recordUpdateMapTransform();
   }, []);
 
   /**
@@ -126,6 +134,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     // Если в данный момент выполняется drag маркера — не начинаем панорамирование
     if (isMarkerDragging) return;
 
+    // Начать профилирование при начале панорамирования
+    const profiler = PerformanceProfiler.getInstance();
+    profiler.start();
+
     // КРИТИЧЕСКОЕ: Сохраняем ДВЕ позиции для правильного вычисления движения
     // 1. Позиция мыши на экране
     startMousePosRef.current = { x: e.clientX, y: e.clientY };
@@ -138,6 +150,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     setStartPanPos({ x: e.clientX, y: e.clientY });  // Для синхронизации с состоянием (не используется в handleMouseMove)
     
     // Обновляем viewport сразу при начале панорамирования
+    profiler.recordSetViewport();
     setViewportPanPosition({ ...panPositionRef.current });
 
     // Prevent native text selection on mousedown + drag
@@ -165,6 +178,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   }, [startPanPos]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    const profiler = PerformanceProfiler.getInstance();
+    profiler.recordMouseMove();
+    profiler.recordFrame();
+
     // КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ: Используем refs вместо зависимостей
     // Это избегает переписывания callback на каждое событие
     if (!isPanningRef.current) return;
@@ -205,6 +222,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     
     // Обновляем viewport позицию ОДИН раз при завершении панорамирования
     // (вместо частых обновлений во время движения)
+    PerformanceProfiler.getInstance().recordSetViewport();
     setViewportPanPosition({ ...panPositionRef.current });
     
     setIsPanning(false);
@@ -240,6 +258,30 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp]);
+
+  // Горячая клавиша для управления профилированием (Escape для остановки, S для перезапуска)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const profiler = PerformanceProfiler.getInstance();
+      
+      // ESC - остановить профилирование и вывести результаты
+      if (e.key === 'Escape') {
+        profiler.stop();
+      }
+      
+      // S - перезапустить профилирование
+      if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        profiler.start();
+        console.log('%c🚀 Профилирование запущено! Нажмите ESC для остановки и вывода результатов.', 'color: green; font-weight: bold; font-size: 12px');
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Слушаем глобальные события перетаскивания маркера, чтобы при drag маркера не инициировать панораму
   useEffect(() => {
@@ -987,6 +1029,8 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
           </Card>
         </div>
       )}
+
+      <PerformanceWidget />
     </div>
   );
 }
