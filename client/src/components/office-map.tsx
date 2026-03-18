@@ -107,17 +107,16 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
 
   /**
    * Debounce обновления viewport позиции для виртуализации маркеров
-   * Отключено - маркеры обновляются только при init или floor change
+   * Обновляется реже чтобы избежать частых re-renders (200ms вместо 50ms)
    */
   const scheduleViewportUpdate = useCallback(() => {
-    // Отключено: это вызывает слишком много re-renders при панорамировании
-    // if (viewportUpdateTimerRef.current !== null) {
-    //   clearTimeout(viewportUpdateTimerRef.current);
-    // }
-    // viewportUpdateTimerRef.current = window.setTimeout(() => {
-    //   setViewportPanPosition({ ...panPositionRef.current });
-    //   viewportUpdateTimerRef.current = null;
-    // }, 50);
+    if (viewportUpdateTimerRef.current !== null) {
+      clearTimeout(viewportUpdateTimerRef.current);
+    }
+    viewportUpdateTimerRef.current = window.setTimeout(() => {
+      setViewportPanPosition({ ...panPositionRef.current });
+      viewportUpdateTimerRef.current = null;
+    }, 200);  // Обновляем viewport реже - раз в 200ms (~5 раз/сек вместо 20)
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -206,10 +205,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       });
     }
     
-    // НЕ вызываем scheduleViewportUpdate() при панорамировании!
-    // Это происходит слишком часто и вызывает бесполезные re-renders
-    // Вместо этого обновляем viewport ОДИН раз при завершении панорамирования
-  }, [updateMapTransform]);
+    // Вызываем scheduleViewportUpdate с дебаунсом 200ms (вместо 50ms)
+    // Это обновляет маркеры медленнее, но не блокирует браузер
+    scheduleViewportUpdate();
+  }, [updateMapTransform, scheduleViewportUpdate]);
 
   const handleMouseUp = useCallback(() => {
     // КРИТИЧЕСКОЕ: Синхронно обновляем refs!
