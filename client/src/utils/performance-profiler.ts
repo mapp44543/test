@@ -11,6 +11,7 @@ interface MetricsSnapshot {
   updateMapTransformCount: number;
   setViewportCount: number;
   rafExecutionTime: number;
+  blockingOperations: Array<{ name: string; duration: number; timestamp: number }>;
   memory: {
     usedJSHeapSize: number;
     totalJSHeapSize: number;
@@ -25,10 +26,12 @@ export class PerformanceProfiler {
     updateMapTransformCount: 0,
     setViewportCount: 0,
     rafExecutionTimes: [] as number[],
+    blockingOperations: [] as { name: string; duration: number; timestamp: number }[],
   };
   private rafExecutionStart: number | null = null;
   private startTime = performance.now();
   private isActive = false;
+  private lastBlockWarning = 0;
 
   private constructor() {}
 
@@ -50,6 +53,7 @@ export class PerformanceProfiler {
       updateMapTransformCount: 0,
       setViewportCount: 0,
       rafExecutionTimes: [],
+      blockingOperations: [],
     };
     this.frameTimestamps = [];
     this.startTime = performance.now();
@@ -80,7 +84,38 @@ export class PerformanceProfiler {
     if (!this.isActive || !this.rafExecutionStart) return;
     const duration = performance.now() - this.rafExecutionStart;
     this.metrics.rafExecutionTimes.push(duration);
+    
+    // Warn if RAF takes too long (> 5ms on average means blocking)
+    if (duration > 10) {
+      const now = performance.now();
+      if (now - this.lastBlockWarning > 1000) {
+        console.warn(`⚠️  RAF BLOCKING: ${duration.toFixed(2)}ms (should be < 5ms)`);
+        this.lastBlockWarning = now;
+      }
+    }
+    
     this.rafExecutionStart = null;
+  }
+
+  /**
+   * Отслеживать блокирующую операцию
+   */
+  recordBlockingOperation(name: string, startTime: number) {
+    if (!this.isActive) return;
+    const duration = performance.now() - startTime;
+    
+    if (duration > 5) {  // Only log operations > 5ms
+      this.metrics.blockingOperations.push({
+        name,
+        duration,
+        timestamp: performance.now(),
+      });
+      
+      // Warn immediately if blocking
+      if (duration > 16) {
+        console.warn(`⚠️  BLOCKING OPERATION: ${name} took ${duration.toFixed(2)}ms!`);
+      }
+    }
   }
 
   /**
@@ -154,6 +189,7 @@ export class PerformanceProfiler {
           ? this.metrics.rafExecutionTimes.reduce((a, b) => a + b, 0) /
             this.metrics.rafExecutionTimes.length
           : 0,
+      blockingOperations: this.metrics.blockingOperations,
       memory:
         (performance as any).memory
           ? {
@@ -228,6 +264,18 @@ export class PerformanceProfiler {
       console.log(`   ⚠️  RAF обработка медленная (${metrics.rafExecutionTime.toFixed(2)}ms). Может быть дорогая операция внутри!`);
     } else {
       console.log(`   ✅ RAF быстрый (${metrics.rafExecutionTime.toFixed(2)}ms)`);
+    }
+
+    // Show blocking operations
+    if (metrics.blockingOperations.length > 0) {
+      console.log('');
+      console.log('%c🚨 BLOCKING OPERATIONS', 'color: red; font-weight: bold');
+      metrics.blockingOperations.slice(0, 10).forEach((op) => {
+        console.log(`   ${op.name}: ${op.duration.toFixed(2)}ms`);
+      });
+      if (metrics.blockingOperations.length > 10) {
+        console.log(`   ... и еще ${metrics.blockingOperations.length - 10}`);
+      }
     }
   }
 

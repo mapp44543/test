@@ -150,8 +150,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     setStartPanPos({ x: e.clientX, y: e.clientY });  // Для синхронизации с состоянием (не используется в handleMouseMove)
     
     // Обновляем viewport сразу при начале панорамирования
+    const setViewportStart = performance.now();
     profiler.recordSetViewport();
     setViewportPanPosition({ ...panPositionRef.current });
+    profiler.recordBlockingOperation('setViewportPanPosition (mouseDown)', setViewportStart);
 
     // Prevent native text selection on mousedown + drag
     try { e.preventDefault(); } catch {}
@@ -222,8 +224,13 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     
     // Обновляем viewport позицию ОДИН раз при завершении панорамирования
     // (вместо частых обновлений во время движения)
-    PerformanceProfiler.getInstance().recordSetViewport();
+    const profiler = PerformanceProfiler.getInstance();
+    const setViewportStart = performance.now();
+    
+    profiler.recordSetViewport();
     setViewportPanPosition({ ...panPositionRef.current });
+    
+    profiler.recordBlockingOperation('setViewportPanPosition', setViewportStart);
     
     setIsPanning(false);
     setIsInteracting(false);
