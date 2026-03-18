@@ -107,7 +107,8 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
 
   /**
    * Debounce обновления viewport позиции для виртуализации маркеров
-   * Обновляется реже чтобы избежать частых re-renders (200ms вместо 50ms)
+   * Обновляется медленнее (~20 раз/сек), чем визуальная трансформация (60 раз/сек)
+   * НО не вызывается при панорамировании мышью!
    */
   const scheduleViewportUpdate = useCallback(() => {
     if (viewportUpdateTimerRef.current !== null) {
@@ -116,7 +117,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     viewportUpdateTimerRef.current = window.setTimeout(() => {
       setViewportPanPosition({ ...panPositionRef.current });
       viewportUpdateTimerRef.current = null;
-    }, 200);  // Обновляем viewport реже - раз в 200ms (~5 раз/сек вместо 20)
+    }, 50);  // Обновляем viewport раз в 50ms (~20 раз/сек)
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -205,10 +206,11 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       });
     }
     
-    // Вызываем scheduleViewportUpdate с дебаунсом 200ms (вместо 50ms)
-    // Это обновляет маркеры медленнее, но не блокирует браузер
-    scheduleViewportUpdate();
-  }, [updateMapTransform, scheduleViewportUpdate]);
+    // 🔴 КРИТИЧНО: НЕ обновляем viewport при панорамировании!
+    // Вместо этого маркеры "заморозятся" на экране, как в Google Maps
+    // И обновятся ТОЛЬКО при mouseUp или при другом действии
+    // Это дает нам максимальную производительность (60 FPS без re-renders)
+  }, [updateMapTransform]);
 
   const handleMouseUp = useCallback(() => {
     // КРИТИЧЕСКОЕ: Синхронно обновляем refs!
@@ -219,9 +221,13 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       rafIdRef.current = null;
     }
     
-    // НЕ обновляем viewport при mouseUp - это вызывает лишний re-render!
-    // Маркеры автоматически обновятся благодаря viewportPanPosition через some other mechanism
-    // или мы просто не обновляем их во время панорамирования
+    // Обновляем viewport позицию ОДИН раз при завершении панорамирования
+    // Маркеры обновятся во viewport что был "заморожен" во время movement
+    const profiler = PerformanceProfiler.getInstance();
+    const setViewportStart = performance.now();
+    profiler.recordSetViewport();
+    setViewportPanPosition({ ...panPositionRef.current });
+    profiler.recordBlockingOperation('setViewportPanPosition (mouseUp)', setViewportStart);
     
     setIsPanning(false);
     setIsInteracting(false);
@@ -244,7 +250,9 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   useEffect(() => {
     panPositionRef.current = panPosition;
     updateMapTransform();
-  }, [panPosition, updateMapTransform]);
+    // Обновляем viewport маркеров при любом изменении panPosition (кроме панорамирования мышью)
+    scheduleViewportUpdate();
+  }, [panPosition, updateMapTransform, scheduleViewportUpdate]);
 
   // КРИТИЧНО: Слушатели мыши для панорамирования
   useEffect(() => {
@@ -353,12 +361,15 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     setPanPosition({ x: newPanX, y: newPanY });
     setScale(newScale);
     setIsInteracting(true);
+    
+    // Обновляем viewport маркеров после zoom
+    scheduleViewportUpdate();
 
     // Сбрасываем батч
     wheelPendingRef.current = false;
     wheelDeltaRef.current = 0;
     wheelRafIdRef.current = null;
-  }, []);
+  }, [scheduleViewportUpdate]);
 
   /**
    * Обработчик события колесика мыши (с батчингом событий)
