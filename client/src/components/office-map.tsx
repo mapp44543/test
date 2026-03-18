@@ -77,6 +77,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       const { x, y } = panPositionRef.current;
       mapScalableRef.current.style.transform =
         `translate3d(${x}px, ${y}px, 0) scale(${scaleRef.current})`;
+      
+      // Профилирование
+      const profiler = PerformanceProfiler.getInstance();
+      profiler.recordUpdateMapTransform();
     }
   }, []);
 
@@ -165,7 +169,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     
     // Профилирование для измерения FPS
     const profiler = PerformanceProfiler.getInstance();
-    profiler.recordMouseMove();
     profiler.recordFrame();
     
     // Вычисляем дельту мыши с момента начала панорамирования
