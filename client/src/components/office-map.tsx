@@ -126,16 +126,16 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     // Если в данный момент выполняется drag маркера — не начинаем панорамирование
     if (isMarkerDragging) return;
 
-    // КРИТИЧЕСКОЕ: Обновляем refs синхронно, не ждём useEffect!
-    const newStartPanPos = {
-      x: e.clientX - panPositionRef.current.x,
-      y: e.clientY - panPositionRef.current.y
-    };
+    // КРИТИЧЕСКОЕ: Сохраняем ДВЕ позиции для правильного вычисления движения
+    // 1. Позиция мыши на экране
+    startMousePosRef.current = { x: e.clientX, y: e.clientY };
+    // 2. Позиция карты в момент начала панорамирования
+    panAtStartRef.current = { ...panPositionRef.current };
+    
     isPanningRef.current = true;
-    startPanPosRef.current = newStartPanPos;
 
     setIsPanning(true);
-    setStartPanPos(newStartPanPos);
+    setStartPanPos({ x: e.clientX, y: e.clientY });  // Для синхронизации с состоянием (не используется в handleMouseMove)
 
     // Prevent native text selection on mousedown + drag
     try { e.preventDefault(); } catch {}
@@ -150,14 +150,15 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   // Используем refs для быстрого доступа к текущему состоянию БЕЗ переписывания callback
   // Это избегает listener re-attaching при каждом изменении состояния
   const isPanningRef = useRef(false);
-  const startPanPosRef = useRef({ x: 0, y: 0 });
+  const startMousePosRef = useRef({ x: 0, y: 0 });  // Экранная позиция мыши при начале панорамирования
+  const panAtStartRef = useRef({ x: 0, y: 0 });    // Позиция карты при начале панорамирования
 
   useEffect(() => {
     isPanningRef.current = isPanning;
   }, [isPanning]);
 
   useEffect(() => {
-    startPanPosRef.current = startPanPos;
+    startMousePosRef.current = startPanPos;  // Переиспользуем startPanPos для тип-совместимости
   }, [startPanPos]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -165,8 +166,13 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     // Это избегает переписывания callback на каждое событие
     if (!isPanningRef.current) return;
     
-    const newX = e.clientX - startPanPosRef.current.x;
-    const newY = e.clientY - startPanPosRef.current.y;
+    // Вычисляем дельту мыши с момента начала панорамирования
+    const deltaX = e.clientX - startMousePosRef.current.x;
+    const deltaY = e.clientY - startMousePosRef.current.y;
+    
+    // Новая позиция = позиция при начале + дельта мыши
+    const newX = panAtStartRef.current.x + deltaX;
+    const newY = panAtStartRef.current.y + deltaY;
     
     // Обновляем refs сразу для более точного взаимодействия
     panPositionRef.current = { x: newX, y: newY };
