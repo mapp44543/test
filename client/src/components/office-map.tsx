@@ -171,13 +171,18 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     const newX = panAtStartRef.current.x + deltaX;
     const newY = panAtStartRef.current.y + deltaY;
     
-    // Обновляем refs сразу для более точного взаимодействия
+    // 🔑 СИНХРОННО обновляем refs (это быстро, без задержки)
+    // Это позволяет вычислять координаты без lag
     panPositionRef.current = { x: newX, y: newY };
     
-    // 🔑 КРИТИЧНО: Обновляем DOM СИНХРОННО, не ждём RAF!
-    // Это минимизирует input lag (задержку между действием и отображением)
-    // RAF добавлял задержку до 16ms, теперь обновляем сразу
-    updateMapTransform();
+    // 🔑 БАТЧИРУЕМ DOM обновления через RAF
+    // Максимум 60 обновлений/сек, но координаты уже синхронны
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        updateMapTransform();
+        rafIdRef.current = null;
+      });
+    }
     
     // 🔴 НЕ обновляем viewport при панорамировании!
     // Вместо этого маркеры "заморозятся" на экране, как в Google Maps
