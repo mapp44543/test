@@ -126,14 +126,19 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     // Если в данный момент выполняется drag маркера — не начинаем панорамирование
     if (isMarkerDragging) return;
 
-    setIsPanning(true);
-    // Prevent native text selection on mousedown + drag
-    try { e.preventDefault(); } catch {}
-    // ОПТИМИЗАЦИЯ: Используем panPositionRef вместо state
-    setStartPanPos({
+    // КРИТИЧЕСКОЕ: Обновляем refs синхронно, не ждём useEffect!
+    const newStartPanPos = {
       x: e.clientX - panPositionRef.current.x,
       y: e.clientY - panPositionRef.current.y
-    });
+    };
+    isPanningRef.current = true;
+    startPanPosRef.current = newStartPanPos;
+
+    setIsPanning(true);
+    setStartPanPos(newStartPanPos);
+
+    // Prevent native text selection on mousedown + drag
+    try { e.preventDefault(); } catch {}
     // Prevent text selection while panning the map
     try {
       document.body.classList.add('dragging-marker-no-select');
@@ -141,11 +146,27 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     } catch {}
   };
 
+  // КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ: 
+  // Используем refs для быстрого доступа к текущему состоянию БЕЗ переписывания callback
+  // Это избегает listener re-attaching при каждом изменении состояния
+  const isPanningRef = useRef(false);
+  const startPanPosRef = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    isPanningRef.current = isPanning;
+  }, [isPanning]);
+
+  useEffect(() => {
+    startPanPosRef.current = startPanPos;
+  }, [startPanPos]);
+
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isPanning) return;
+    // КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ: Используем refs вместо зависимостей
+    // Это избегает переписывания callback на каждое событие
+    if (!isPanningRef.current) return;
     
-    const newX = e.clientX - startPanPos.x;
-    const newY = e.clientY - startPanPos.y;
+    const newX = e.clientX - startPanPosRef.current.x;
+    const newY = e.clientY - startPanPosRef.current.y;
     
     // Обновляем refs сразу для более точного взаимодействия
     panPositionRef.current = { x: newX, y: newY };
@@ -161,9 +182,12 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     
     // Debounce обновления viewport для маркеров (медленнее, 50ms)
     scheduleViewportUpdate();
-  }, [isPanning, startPanPos, updateMapTransform, scheduleViewportUpdate]);
+  }, [updateMapTransform, scheduleViewportUpdate]);
 
   const handleMouseUp = useCallback(() => {
+    // КРИТИЧЕСКОЕ: Синхронно обновляем refs!
+    isPanningRef.current = false;
+    
     if (rafIdRef.current !== null) {
       cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = null;
@@ -176,24 +200,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       document.documentElement.classList.remove('dragging-marker-no-select');
     } catch {}
   }, []);
-
-  // Добавляем обработчики событий мыши
-  useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    window.addEventListener('mouseup', handleMouseUp, { passive: true });
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-      if (rafIdRef.current !== null) {
-        cancelAnimationFrame(rafIdRef.current);
-      }
-      // Ensure we don't leave no-select class on unmount
-      try {
-        document.body.classList.remove('dragging-marker-no-select');
-        document.documentElement.classList.remove('dragging-marker-no-select');
-      } catch {}
-    };
-  }, [handleMouseMove, handleMouseUp]);
 
   // Синхронизируем scaleRef с состоянием масштаба
   useEffect(() => {
@@ -208,6 +214,17 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     panPositionRef.current = panPosition;
     updateMapTransform();
   }, [panPosition, updateMapTransform]);
+
+  // КРИТИЧНО: Слушатели мыши для панорамирования
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
 
   // Слушаем глобальные события перетаскивания маркера, чтобы при drag маркера не инициировать панораму
   useEffect(() => {
