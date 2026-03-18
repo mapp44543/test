@@ -184,6 +184,9 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   }, [startPanPos]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    const profiler = PerformanceProfiler.getInstance();
+    profiler.recordFrame();  // Нужна для подсчета FPS
+
     // КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ: Используем refs вместо зависимостей
     // Это избегает переписывания callback на каждое событие
     if (!isPanningRef.current) return;
