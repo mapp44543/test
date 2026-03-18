@@ -68,41 +68,16 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
 
 
 
-
-  const handleUndo = () => {
-    if (!isAdminMode || undoStack.length === 0) return;
-    const last = undoStack[undoStack.length - 1];
-    setUndoStack(stack => stack.slice(0, -1));
-    // Найти локацию по id
-    const loc = locations.find((l: Location) => l.id === last.id);
-    if (!loc) return;
-    // Откатить позицию
-    updateLocationMutation.mutate({
-      id: last.id,
-      x: last.prevX,
-      y: last.prevY,
-      width: last.prevWidth ?? loc.width,
-      height: last.prevHeight ?? loc.height,
-    });
-    toast({ title: 'Перемещение отменено', description: loc.name });
-  };
-
   /**
    * ОПТИМИЗАЦИЯ: Обновляем трансформацию карты напрямую в DOM (без re-render)
    * Это позволяет достичь 60 FPS пананирования без перерисовок
    */
   const updateMapTransform = useCallback(() => {
-    const profiler = PerformanceProfiler.getInstance();
-    profiler.rafStart();
-
     if (mapScalableRef.current) {
       const { x, y } = panPositionRef.current;
-      mapScalableRef.current.style.transform = 
+      mapScalableRef.current.style.transform =
         `translate3d(${x}px, ${y}px, 0) scale(${scaleRef.current})`;
     }
-
-    profiler.rafEnd();
-    profiler.recordUpdateMapTransform();
   }, []);
 
   /**
@@ -184,10 +159,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   }, [startPanPos]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    const profiler = PerformanceProfiler.getInstance();
-    profiler.recordMouseMove();
-    profiler.recordFrame();  // Нужна для подсчета FPS
-
     // КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ: Используем refs вместо зависимостей
     // Это избегает переписывания callback на каждое событие
     if (!isPanningRef.current) return;
@@ -563,6 +534,24 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       toast({ title: 'Ошибка при создании локации', variant: 'destructive' });
     },
   });
+
+  const handleUndo = () => {
+    if (!isAdminMode || undoStack.length === 0) return;
+    const last = undoStack[undoStack.length - 1];
+    setUndoStack(stack => stack.slice(0, -1));
+    // Найти локацию по id
+    const loc = locations.find((l: Location) => l.id === last.id);
+    if (!loc) return;
+    // Откатить позицию
+    updateLocationMutation.mutate({
+      id: last.id,
+      x: last.prevX,
+      y: last.prevY,
+      width: last.prevWidth ?? loc.width,
+      height: last.prevHeight ?? loc.height,
+    });
+    toast({ title: 'Перемещение отменено', description: loc.name });
+  };
 
         // Отключено создание локации по клику на карте
         function handleMapClick(e: React.MouseEvent<HTMLImageElement, MouseEvent>) {
