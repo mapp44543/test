@@ -730,7 +730,7 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
             display: 'inline-block',
             // ОПТИМИЗАЦИЯ: transform управляется НАПРЯМУЮ через ref в updateMapTransform()
             // Инициальный стиль - будет перезаписан через DOM манипуляцию после первого обновления
-            transition: isPanning || isZooming ? 'none' : 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'none',  // Отключаем transitions полностью для максимальной производительности
             cursor: isPanning ? 'grabbing' : 'grab',
             willChange: isPanning || isZooming ? 'transform' : 'auto',
             // 🔑 GPU оптимизация для плавного функционирования
