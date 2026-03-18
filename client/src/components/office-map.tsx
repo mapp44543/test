@@ -722,9 +722,13 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
             display: 'inline-block',
             // ОПТИМИЗАЦИЯ: transform управляется НАПРЯМУЮ через ref в updateMapTransform()
             // Инициальный стиль - будет перезаписан через DOM манипуляцию после первого обновления
-            transition: isInteracting || isZooming ? 'none' : 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: isPanning || isZooming ? 'none' : 'transform 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
             cursor: isPanning ? 'grabbing' : 'grab',
-            willChange: isInteracting || isZooming ? 'transform' : 'auto'
+            willChange: isPanning || isZooming ? 'transform' : 'auto',
+            // 🔑 GPU оптимизация для плавного функционирования
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            transformOrigin: '0 0',
           }}
           >
           {imageUrl ? (
