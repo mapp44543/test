@@ -107,16 +107,17 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
 
   /**
    * Debounce обновления viewport позиции для виртуализации маркеров
-   * Обновляется медленнее (~20 раз/сек), чем визуальная трансформация (60 раз/сек)
+   * Отключено - маркеры обновляются только при init или floor change
    */
   const scheduleViewportUpdate = useCallback(() => {
-    if (viewportUpdateTimerRef.current !== null) {
-      clearTimeout(viewportUpdateTimerRef.current);
-    }
-    viewportUpdateTimerRef.current = window.setTimeout(() => {
-      setViewportPanPosition({ ...panPositionRef.current });
-      viewportUpdateTimerRef.current = null;
-    }, 50);  // Обновляем viewport раз в 50ms (~20 раз/сек)
+    // Отключено: это вызывает слишком много re-renders при панорамировании
+    // if (viewportUpdateTimerRef.current !== null) {
+    //   clearTimeout(viewportUpdateTimerRef.current);
+    // }
+    // viewportUpdateTimerRef.current = window.setTimeout(() => {
+    //   setViewportPanPosition({ ...panPositionRef.current });
+    //   viewportUpdateTimerRef.current = null;
+    // }, 50);
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -219,15 +220,9 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       rafIdRef.current = null;
     }
     
-    // Обновляем viewport позицию ОДИН раз при завершении панорамирования
-    // (вместо частых обновлений во время движения)
-    const profiler = PerformanceProfiler.getInstance();
-    const setViewportStart = performance.now();
-    
-    profiler.recordSetViewport();
-    setViewportPanPosition({ ...panPositionRef.current });
-    
-    profiler.recordBlockingOperation('setViewportPanPosition', setViewportStart);
+    // НЕ обновляем viewport при mouseUp - это вызывает лишний re-render!
+    // Маркеры автоматически обновятся благодаря viewportPanPosition через some other mechanism
+    // или мы просто не обновляем их во время панорамирования
     
     setIsPanning(false);
     setIsInteracting(false);
