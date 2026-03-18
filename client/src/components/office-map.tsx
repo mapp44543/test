@@ -139,6 +139,12 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     const profiler = PerformanceProfiler.getInstance();
     profiler.start();
 
+    // Очищаем старый таймаут viewport обновления (если он был запланирован)
+    if (viewportUpdateTimerRef.current !== null) {
+      clearTimeout(viewportUpdateTimerRef.current);
+      viewportUpdateTimerRef.current = null;
+    }
+
     // КРИТИЧЕСКОЕ: Сохраняем ДВЕ позиции для правильного вычисления движения
     // 1. Позиция мыши на экране
     startMousePosRef.current = { x: e.clientX, y: e.clientY };
@@ -221,13 +227,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       rafIdRef.current = null;
     }
     
-    // Обновляем viewport позицию ОДИН раз при завершении панорамирования
-    // Маркеры обновятся во viewport что был "заморожен" во время movement
-    const profiler = PerformanceProfiler.getInstance();
-    const setViewportStart = performance.now();
-    profiler.recordSetViewport();
-    setViewportPanPosition({ ...panPositionRef.current });
-    profiler.recordBlockingOperation('setViewportPanPosition (mouseUp)', setViewportStart);
+    // 🔴 НЕ планируем viewport обновление при mouseUp!
+    // Это вызывает накопление задач и замораживает браузер
+    // Вместо этого маркеры обновляются только при wheel zoom или centerOnLocation
+    // Это максимум производительности (60 FPS чистого панорамирования)
     
     setIsPanning(false);
     setIsInteracting(false);
@@ -250,9 +253,10 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
   useEffect(() => {
     panPositionRef.current = panPosition;
     updateMapTransform();
-    // Обновляем viewport маркеров при любом изменении panPosition (кроме панорамирования мышью)
-    scheduleViewportUpdate();
-  }, [panPosition, updateMapTransform, scheduleViewportUpdate]);
+    // 🔴 НЕ вызываем scheduleViewportUpdate() здесь!
+    // Вместо этого вызываем его явно в handleMouseUp и processWheelBatch
+    // Это избегает лишних viewport обновлений
+  }, [panPosition, updateMapTransform]);
 
   // КРИТИЧНО: Слушатели мыши для панорамирования
   useEffect(() => {
