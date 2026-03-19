@@ -162,7 +162,7 @@ export default function Home() {
                       <span className="text-muted-foreground" data-testid="text-available-count">Свободное рабочее место ({stats.available})</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#13CE66' }}></span>
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: '#429fc7' }}></span>
                       <span className="text-muted-foreground" data-testid="text-occupied-count">Рабочее место используется ({stats.occupied})</span>
                     </div>
                     <div className="flex items-center space-x-2">
