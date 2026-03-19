@@ -4,8 +4,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { getOptimizedImageUrl } from "@/lib/image-optimization";
-import { PerformanceProfiler } from "@/utils/performance-profiler";
-import PerformanceWidget from "./performance-widget";
 import LocationMarker from "./location-marker";
 import VirtualizedMarkerLayer from "./virtualized-marker-layer";
 import VirtualizedMarkerLayerAdvanced from "./virtualized-marker-layer-advanced";
@@ -77,10 +75,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       const { x, y } = panPositionRef.current;
       mapScalableRef.current.style.transform =
         `translate3d(${x}px, ${y}px, 0) scale(${scaleRef.current})`;
-      
-      // Профилирование
-      const profiler = PerformanceProfiler.getInstance();
-      profiler.recordUpdateMapTransform();
     }
   }, []);
 
@@ -113,10 +107,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     if (!isInsideMap || interactiveTags.includes(target?.tagName?.toLowerCase() || '')) return;
     // Если в данный момент выполняется drag маркера — не начинаем панорамирование
     if (isMarkerDragging) return;
-
-    // Начать профилирование при начале панорамирования
-    const profiler = PerformanceProfiler.getInstance();
-    profiler.start();
 
     // Очищаем старый таймаут viewport обновления (если он был запланирован)
     if (viewportUpdateTimerRef.current !== null) {
@@ -166,10 +156,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     // КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ: Используем refs вместо зависимостей
     // Это избегает переписывания callback на каждое событие
     if (!isPanningRef.current) return;
-    
-    // Профилирование для измерения FPS
-    const profiler = PerformanceProfiler.getInstance();
-    profiler.recordFrame();
     
     // Вычисляем дельту мыши с момента начала панорамирования
     const deltaX = e.clientX - startMousePosRef.current.x;
@@ -248,30 +234,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp]);
-
-  // Горячая клавиша для управления профилированием (Escape для остановки, S для перезапуска)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const profiler = PerformanceProfiler.getInstance();
-      
-      // ESC - остановить профилирование и вывести результаты
-      if (e.key === 'Escape') {
-        profiler.stop();
-      }
-      
-      // S - перезапустить профилирование
-      if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        profiler.start();
-        console.log('%c🚀 Профилирование запущено! Нажмите ESC для остановки и вывода результатов.', 'color: green; font-weight: bold; font-size: 12px');
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
 
   // Слушаем глобальные события перетаскивания маркера, чтобы при drag маркера не инициировать панораму
   useEffect(() => {
@@ -1044,8 +1006,6 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
           </Card>
         </div>
       )}
-
-      <PerformanceWidget />
     </div>
   );
 }
