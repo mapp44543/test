@@ -413,6 +413,9 @@ export default function OfficeMap({ locations, isAdminMode, currentFloor, refetc
     // Подсвечиваем маркер
     setHighlightedLocationIdsLocal(prev => Array.from(new Set([...prev, locationId])));
     setTimeout(() => setHighlightedLocationIdsLocal(prev => prev.filter(id => id !== locationId)), 6000);
+
+    // Обновляем viewport сразу, чтобы маркеры отобразились без задержки
+    scheduleViewportUpdate();
   };
 
   // when parent requests a highlight via prop, center and highlight it
