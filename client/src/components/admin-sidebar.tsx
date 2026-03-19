@@ -906,7 +906,7 @@ export default function AdminSidebar({ locations, stats, currentFloor, onFindLoc
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-emerald-600" data-testid="text-available-spaces">{stats.available}</div>
-              <div className="text-sm text-muted-foreground">Доступно</div>
+              <div className="text-sm text-muted-foreground">Свободное рабочее место</div>
             </CardContent>
           </Card>
         </div>

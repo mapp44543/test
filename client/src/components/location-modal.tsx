@@ -680,7 +680,7 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
                   <>
                     <span className={`w-4 h-4 rounded-full ${getStatusColor(statusVal)}`}></span>
                     <span className="font-medium text-foreground capitalize" data-testid="text-location-status">
-                      {formData.type === 'socket' ? (statusVal || '—') : (formData.status === 'available' ? 'доступно' : formData.status === 'occupied' ? 'Занято' : formData.status === 'maintenance' ? 'на обслуживании' : formData.status)}
+                      {formData.type === 'socket' ? (statusVal || '—') : (formData.status === 'available' ? 'свободное рабочее место' : formData.status === 'occupied' ? 'Рабочее место используется' : formData.status === 'maintenance' ? 'рабочее место в резерве' : formData.status)}
                     </span>
                     {statusLastSyncDate && (
                       <span
@@ -1057,9 +1057,9 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="available">Доступно</SelectItem>
-                          <SelectItem value="occupied">Занято</SelectItem>
-                          <SelectItem value="maintenance">На обслуживании</SelectItem>
+                          <SelectItem value="available">Свободное рабочее место</SelectItem>
+                          <SelectItem value="occupied">Рабочее место используется</SelectItem>
+                          <SelectItem value="maintenance">Рабочее место в резерве</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1209,7 +1209,7 @@ const LocationModal: React.FC<LocationModalProps> = React.memo(({ location, isAd
                   {formData.type === 'workstation' && (
                     <div>
                       <Label htmlFor="workstation-icon-select">
-                        Иконка для статуса "{formData.status === 'occupied' ? 'Занято' : formData.status === 'available' ? 'Доступно' : 'На обслуживании'}"
+                        Иконка для статуса "{formData.status === 'occupied' ? 'Рабочее место используется' : formData.status === 'available' ? 'Свободное рабочее место' : 'Рабочее место в резерве'}"
                       </Label>
                       {formData.status === 'occupied' && (
                         workstationActivIcons.length > 0 ? (
